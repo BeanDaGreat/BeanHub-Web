@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Terminal, 
-  Settings, 
   Copy, 
   Check, 
-  Lock, 
   Globe,
   Disc,
   Zap,
@@ -15,44 +13,39 @@ import {
   Layers,
   Activity,
   ChevronRight,
-  Monitor
+  Monitor,
+  Cpu,
+  Radio,
+  ExternalLink,
+  Code2
 } from 'lucide-react';
 
 // --- CENTRAL CONFIGURATION ---
 const CONFIG = {
-  ADMIN_PASSWORD: '@lesam625',
   DISCORD_URL: 'https://discord.gg/beanhub',
   LOADER_SCRIPT: `loadstring(game:HttpGet("https://raw.githubusercontent.com/BeanHub/Main/main/loader.lua"))()`,
-  INITIAL_STATUS: {
+  STATUS: {
     wave: true,
     delta: true,
     fluxus: false,
-    updateMsg: "System Optimal",
-    lastUpdated: Date.now()
+    updateMsg: "System Optimal: Nodes 1-4 Synchronized"
   }
 };
 
 export default function App() {
-  // Authentication & Role State (Local Only)
-  const [isAdmin, setIsAdmin] = useState(false);
-  
   // UI State
-  const [showLogin, setShowLogin] = useState(false);
-  const [password, setPassword] = useState('');
   const [copied, setCopied] = useState(false);
   const [activeUsers, setActiveUsers] = useState(1420);
   const [isBooting, setIsBooting] = useState(true);
+  const [terminalLines, setTerminalLines] = useState([]);
   
-  // Real-time Status State (Local Only - No Firestore)
-  const [status, setStatus] = useState(CONFIG.INITIAL_STATUS);
-
   // --- LIFECYCLE: UI EFFECTS ---
   useEffect(() => {
     const userInterval = setInterval(() => {
       setActiveUsers(prev => prev + Math.floor(Math.random() * 7) - 3);
     }, 3000);
     
-    const bootTimer = setTimeout(() => setIsBooting(false), 800);
+    const bootTimer = setTimeout(() => setIsBooting(false), 1200);
     
     return () => {
       clearInterval(userInterval);
@@ -60,27 +53,29 @@ export default function App() {
     };
   }, []);
 
+  // CLI Animation Effect
+  useEffect(() => {
+    if (isBooting) return;
+    const lines = [
+      "> INITIALIZING BEANHUB_V4_KERNEL...",
+      "> CONNECTING TO EDGE_NODES [HK, SF, LON]...",
+      "> BYPASSING HYPERION_HEURISTICS... SUCCESS",
+      "> CLOUD_SYNC: OK",
+      "> READY."
+    ];
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i < lines.length) {
+        setTerminalLines(prev => [...prev, lines[i]]);
+        i++;
+      } else {
+        clearInterval(interval);
+      }
+    }, 400);
+    return () => clearInterval(interval);
+  }, [isBooting]);
+
   // --- HANDLERS ---
-  const updateLocalStatus = (updates) => {
-    if (!isAdmin) return;
-    setStatus(prev => ({
-      ...prev,
-      ...updates,
-      lastUpdated: Date.now()
-    }));
-  };
-
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (password === CONFIG.ADMIN_PASSWORD) { 
-      setIsAdmin(true);
-      setShowLogin(false);
-      setPassword('');
-    } else {
-      setPassword('');
-    }
-  };
-
   const copyToClipboard = useCallback(() => {
     const textArea = document.createElement("textarea");
     textArea.value = CONFIG.LOADER_SCRIPT;
@@ -94,10 +89,9 @@ export default function App() {
     textArea.select();
     
     try {
-      if (document.execCommand('copy')) {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      }
+      document.execCommand('copy');
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error("Unable to copy to clipboard", err);
     }
@@ -106,263 +100,259 @@ export default function App() {
 
   // --- MEMOIZED CALCULATIONS ---
   const securityScore = useMemo(() => {
-    const score = (status.wave ? 45 : 0) + (status.delta ? 45 : 0) + (status.fluxus ? 8.4 : 2);
+    const score = (CONFIG.STATUS.wave ? 45 : 0) + (CONFIG.STATUS.delta ? 45 : 0) + (CONFIG.STATUS.fluxus ? 8.4 : 2);
     return score.toFixed(1);
-  }, [status]);
+  }, []);
 
   // --- RENDER: LOADING STATE ---
   if (isBooting) {
     return (
-      <div className="min-h-screen bg-[#020402] flex items-center justify-center font-mono text-emerald-500">
-        <div className="space-y-2 text-center">
-          <p className="animate-pulse tracking-tighter uppercase tracking-widest text-xs">_ INITIALIZING BEANHUB_CORE...</p>
-          <div className="w-48 h-1 bg-white/5 rounded-full overflow-hidden mx-auto">
-            <div className="h-full bg-emerald-500 animate-[loading_1.5s_ease-in-out_infinite]" />
+      <div className="min-h-screen bg-[#050705] flex items-center justify-center font-mono">
+        <div className="relative">
+          <div className="w-24 h-24 border-t-2 border-emerald-500 rounded-full animate-spin" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-12 h-12 bg-emerald-500/20 rounded-full animate-pulse" />
           </div>
+          <p className="mt-8 text-emerald-500 text-[10px] tracking-[0.3em] font-black uppercase text-center">Loading Hub</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#020402] text-slate-200 font-sans selection:bg-emerald-500/30 overflow-x-hidden">
-      {/* Background Grid Layer */}
-      <div className="fixed inset-0 pointer-events-none opacity-20 z-0" 
-           style={{backgroundImage: `radial-gradient(#10b981 0.5px, transparent 0.5px)`, backgroundSize: '24px 24px'}}></div>
+    <div className="min-h-screen bg-[#050705] text-slate-300 font-sans selection:bg-emerald-500/30 overflow-x-hidden">
+      {/* Dynamic Background Noise/Pattern */}
+      <div className="fixed inset-0 pointer-events-none opacity-[0.03] z-0" 
+           style={{backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3 Vag%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`}}></div>
       
-      {/* Navigation Bar */}
-      <nav className="fixed top-0 w-full z-[60] px-4 py-4 md:px-6 md:py-6">
-        <div className="max-w-7xl mx-auto flex items-center justify-between bg-black/40 backdrop-blur-xl border border-white/5 rounded-2xl px-4 md:px-8 py-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-black shadow-lg shadow-emerald-500/20">
-              <Terminal size={20} />
+      {/* Navigation */}
+      <nav className="fixed top-0 w-full z-[100] p-6">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-4 group cursor-default">
+            <div className="relative">
+              <div className="absolute -inset-2 bg-emerald-500/20 blur-md rounded-full group-hover:bg-emerald-500/40 transition-all" />
+              <div className="relative w-12 h-12 bg-black border border-emerald-500/20 rounded-2xl flex items-center justify-center text-emerald-500 shadow-2xl">
+                <Terminal size={24} />
+              </div>
             </div>
-            <span className="font-black text-xl tracking-tighter uppercase">Bean<span className="text-emerald-500">Hub</span></span>
-          </div>
-          
-          <div className="hidden lg:flex gap-8 text-[10px] font-black uppercase tracking-widest text-slate-500">
-            {['status', 'features', 'script'].map(link => (
-              <a key={link} href={`#${link}`} className="hover:text-emerald-400 transition-colors uppercase">{link}</a>
-            ))}
-            <button onClick={() => setShowLogin(true)} className="hover:text-emerald-400 transition-colors flex items-center gap-2">
-              <Lock size={12} /> {isAdmin ? 'Root: Active' : 'Dev Login'}
-            </button>
+            <div>
+              <h1 className="font-black text-2xl tracking-tighter leading-none text-white">BEAN<span className="text-emerald-500">HUB</span></h1>
+              <span className="text-[9px] font-bold text-emerald-500/50 uppercase tracking-[0.2em]">Established 2024</span>
+            </div>
           </div>
 
-          <div className="flex items-center gap-4">
-             <div className="hidden sm:flex flex-col items-end leading-none">
-                <span className="text-[10px] font-black text-emerald-500">{activeUsers.toLocaleString()}</span>
-                <span className="text-[8px] font-bold text-slate-600 uppercase tracking-tighter">Live Sessions</span>
-             </div>
-             <a href={CONFIG.DISCORD_URL} target="_blank" rel="noreferrer" className="bg-emerald-500 text-black px-6 py-2 rounded-lg text-xs font-black uppercase tracking-wider hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/10">Discord</a>
+          <div className="flex items-center gap-8">
+            <div className="hidden lg:flex gap-8 text-[11px] font-black uppercase tracking-widest">
+              {['status', 'core', 'terminal'].map(link => (
+                <a key={link} href={`#${link}`} className="text-slate-500 hover:text-white transition-colors">/{link}</a>
+              ))}
+            </div>
+            <a href={CONFIG.DISCORD_URL} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-emerald-500 hover:bg-emerald-400 text-black px-6 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20 active:scale-95">
+              <Disc size={16} /> Community
+            </a>
           </div>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <header className="pt-48 md:pt-56 pb-20 md:pb-32 px-6 text-center relative overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1200px] h-[600px] bg-emerald-500/5 blur-[140px] -z-10 rounded-full" />
-        <div className="inline-flex items-center gap-2 px-4 py-2 mb-8 text-[10px] font-black tracking-widest text-emerald-400 bg-emerald-400/5 rounded-full border border-emerald-400/10 uppercase">
-          <Activity size={12} className="animate-pulse" />
-          V4.0 CLOUD ARCHITECTURE
-        </div>
-        <h1 className="text-5xl md:text-9xl font-black tracking-tighter mb-8 leading-[0.85] uppercase italic">
-          The Industry <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-emerald-500 to-emerald-800">Standard.</span>
-        </h1>
-        <p className="max-w-xl mx-auto text-slate-400 text-base md:text-lg mb-12 font-medium">
-          Premium infrastructure providing instant script execution and unmatched stability across all platforms.
-        </p>
-        <div className="flex flex-col sm:flex-row justify-center gap-4">
-          <button 
-            onClick={() => document.getElementById('script')?.scrollIntoView({ behavior: 'smooth' })} 
-            className="bg-emerald-500 text-black px-12 py-5 rounded-2xl font-black text-xl shadow-xl shadow-emerald-500/30 hover:scale-[1.02] hover:bg-emerald-400 active:scale-95 transition-all"
-          >
-            Launch Loader
-          </button>
-          <button 
-            onClick={() => document.getElementById('status')?.scrollIntoView({ behavior: 'smooth' })}
-            className="bg-white/5 border border-white/10 px-12 py-5 rounded-2xl font-black text-xl hover:bg-white/10 transition-all"
-          >
-            Check Status
-          </button>
+      {/* Hero: Terminal Style */}
+      <header className="relative pt-44 pb-32 px-6">
+        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
+          <div className="relative z-10">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-6 text-[10px] font-black tracking-widest text-emerald-400 bg-emerald-400/5 rounded-md border border-emerald-400/10 uppercase">
+              <Activity size={12} />
+              Live Pulse: {activeUsers} Connections
+            </div>
+            <h2 className="text-6xl md:text-8xl font-black text-white leading-[0.9] mb-8 uppercase italic tracking-tighter">
+              The Next <br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-200">Evolution.</span>
+            </h2>
+            <p className="text-slate-500 text-lg max-w-md mb-10 font-medium">
+              We build the infrastructure. You dominate the game. Experience the fastest execution speeds in the market with BeanHub V4.
+            </p>
+            <div className="flex flex-wrap gap-4">
+              <button 
+                onClick={() => document.getElementById('terminal')?.scrollIntoView({ behavior: 'smooth' })}
+                className="group relative px-8 py-4 bg-white text-black font-black uppercase tracking-widest text-xs rounded-lg overflow-hidden transition-all"
+              >
+                <div className="absolute inset-0 bg-emerald-500 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                <span className="relative group-hover:text-black transition-colors flex items-center gap-2">Get Started <ChevronRight size={14} /></span>
+              </button>
+              <div className="flex items-center gap-4 px-6 py-4 rounded-lg border border-white/5 bg-white/[0.02]">
+                <Radio className="text-emerald-500 animate-pulse" size={16} />
+                <span className="text-[10px] font-black uppercase tracking-widest text-white">Status: Nominal</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative">
+            <div className="absolute -inset-4 bg-emerald-500/10 blur-3xl rounded-full" />
+            <div className="relative bg-black/40 border border-white/10 backdrop-blur-xl rounded-3xl overflow-hidden shadow-2xl">
+              <div className="px-6 py-4 bg-white/[0.03] border-b border-white/10 flex items-center justify-between">
+                <div className="flex gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-500/20" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/20" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/20" />
+                </div>
+                <span className="text-[9px] font-black text-slate-600 uppercase tracking-[0.3em]">Bean_Kernel_Terminal</span>
+              </div>
+              <div className="p-8 font-mono text-[13px] min-h-[300px]">
+                {terminalLines.map((line, idx) => (
+                  <div key={idx} className="mb-2 flex gap-4">
+                    <span className="text-slate-700">{idx + 1}</span>
+                    <span className={(line && (line.includes('SUCCESS') || line.includes('READY'))) ? 'text-emerald-400 font-bold' : 'text-slate-400'}>
+                      {line}
+                    </span>
+                  </div>
+                ))}
+                {!isBooting && terminalLines.length === 5 && (
+                  <div className="mt-4 flex gap-4">
+                    <span className="text-slate-700">6</span>
+                    <span className="w-2 h-4 bg-emerald-500 animate-pulse" />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </header>
 
-      {/* Grid Content Section */}
-      <main id="status" className="max-w-7xl mx-auto px-6 py-20 border-y border-white/[0.03]">
-        <div className="grid lg:grid-cols-4 gap-8">
+      {/* Network Architecture (Reworked Status) */}
+      <section id="status" className="max-w-7xl mx-auto px-6 py-32 border-t border-white/5">
+        <div className="flex flex-col md:flex-row gap-16 items-start">
+          <div className="md:w-1/3 sticky top-32">
+            <h3 className="text-4xl font-black text-white mb-6 uppercase italic tracking-tighter">Network <br/><span className="text-emerald-500">Architecture</span></h3>
+            <p className="text-slate-500 text-sm leading-relaxed mb-8">Our cloud nodes are distributed globally to ensure minimum latency regardless of your location. Monitoring 24/7.</p>
+            <div className="p-6 rounded-2xl bg-emerald-500/5 border border-emerald-500/10">
+              <div className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-4">Relay Intelligence</div>
+              <div className="text-3xl font-black text-white italic">{securityScore}%</div>
+              <p className="text-[9px] text-slate-600 font-bold uppercase mt-2 italic">Infrastructure Integrity Index</p>
+            </div>
+          </div>
           
-          {/* Sidebar Admin Controls */}
-          <div className={`lg:col-span-1 transition-all duration-500 ${isAdmin ? 'opacity-100' : 'opacity-20 grayscale pointer-events-none hidden lg:block'}`}>
-            <div className="bg-white/5 border border-white/10 rounded-[32px] p-8 sticky top-32 backdrop-blur-sm">
-              <div className="flex items-center gap-3 mb-8">
-                <Settings className="text-emerald-500 animate-spin-slow" size={20} />
-                <h3 className="font-bold uppercase tracking-tight">Root Controls</h3>
-              </div>
-              <div className="space-y-6">
-                {['wave', 'delta', 'fluxus'].map(key => (
-                  <div key={key} className="flex items-center justify-between group">
-                    <span className="text-sm font-bold capitalize group-hover:text-emerald-400 transition-colors">{key}</span>
-                    <button 
-                      onClick={() => updateLocalStatus({ [key]: !status[key] })}
-                      className={`w-12 h-6 rounded-full transition-all relative ${status[key] ? 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-white/10'}`}
-                    >
-                      <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${status[key] ? 'left-7' : 'left-1'}`} />
-                    </button>
-                  </div>
-                ))}
-                <div className="pt-6 border-t border-white/5">
-                  <label className="text-[10px] font-black text-slate-500 uppercase block mb-2">Global Broadcast</label>
-                  <input 
-                    type="text" 
-                    value={status.updateMsg}
-                    onChange={(e) => updateLocalStatus({ updateMsg: e.target.value })}
-                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
-                  />
+          <div className="md:w-2/3 grid gap-4 w-full">
+            <ModernStatusRow name="Wave Executor" version="V2.1.4" status={CONFIG.STATUS.wave} icon={Waves} delay="0ms" />
+            <ModernStatusRow name="Delta Mobile" version="BETA 4" status={CONFIG.STATUS.delta} icon={Disc} delay="12ms" />
+            <ModernStatusRow name="Fluxus Relay" version="LEGACY" status={CONFIG.STATUS.fluxus} icon={ZapOff} delay="--" />
+            <div className="p-6 rounded-3xl bg-white/[0.02] border border-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-slate-500">
+                        <Globe size={20} />
+                    </div>
+                    <div>
+                        <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Global Broadcast</div>
+                        <div className="text-sm font-bold text-white uppercase italic">{CONFIG.STATUS.updateMsg}</div>
+                    </div>
                 </div>
-              </div>
             </div>
           </div>
-
-          {/* Main Network Status */}
-          <div className="lg:col-span-3 grid md:grid-cols-3 gap-6">
-            <div className="md:col-span-3 flex flex-col md:flex-row md:items-center justify-between gap-4 px-2 mb-2">
-              <h2 className="text-4xl font-black tracking-tight uppercase italic">Network <span className="text-emerald-500">Relay</span></h2>
-              <div className="flex items-center gap-4 bg-emerald-500/5 px-6 py-3 rounded-2xl border border-emerald-500/10">
-                <div className="flex flex-col">
-                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Live Pulse</span>
-                  <span className="text-xs font-bold text-emerald-400">{status.updateMsg}</span>
-                </div>
-              </div>
-            </div>
-
-            <StatusCard title="Wave 2.1" active={status.wave} Icon={Waves} desc="Next-gen detection bypass for PC." />
-            <StatusCard title="Delta Mobile" active={status.delta} Icon={Disc} desc="Standard Android framework support." />
-            <StatusCard title="Fluxus Cloud" active={status.fluxus} Icon={Zap} desc="Legacy relay / Maintenance." />
-            
-            {/* Stability Index Card */}
-            <div className="md:col-span-3 bg-gradient-to-br from-emerald-500/[0.07] to-transparent border border-emerald-500/20 rounded-[32px] p-10 flex flex-col md:flex-row items-center justify-between gap-8">
-               <div className="text-center md:text-left">
-                  <div className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1">Stability Index</div>
-                  <div className="text-5xl font-black italic">{securityScore}%</div>
-                  <div className="text-xs text-slate-500 font-bold mt-2 uppercase tracking-tight italic">Global infrastructure health report.</div>
-               </div>
-               <div className="flex gap-4 items-end h-16">
-                  {[20, 50, 80, 95].map(threshold => (
-                    <div 
-                      key={threshold} 
-                      className={`w-1.5 rounded-full transition-all duration-700 ${Number(securityScore) >= threshold ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-white/10'}`} 
-                      style={{ height: `${(threshold / 100) * 100}%` }}
-                    />
-                  ))}
-               </div>
-            </div>
-          </div>
-        </div>
-      </main>
-
-      {/* Features Grid */}
-      <section id="features" className="max-w-7xl mx-auto px-6 py-32">
-        <div className="text-center mb-20">
-          <h2 className="text-4xl font-black mb-4 tracking-tighter uppercase italic">System <span className="text-emerald-500">Core</span></h2>
-          <p className="text-slate-500 max-w-lg mx-auto font-medium uppercase text-[10px] tracking-[0.3em]">Engineering excellence for the modern exploiter.</p>
-        </div>
-        <div className="grid md:grid-cols-3 gap-8 md:gap-12">
-          <FeatureCard Icon={ShieldCheck} title="Kernel Guard" desc="Advanced obfuscation that mimics legitimate game traffic to evade modern AC systems." />
-          <FeatureCard Icon={Layers} title="Cross-Platform" desc="Universal loader logic that detects your environment and optimizes for CPU/GPU." />
-          <FeatureCard Icon={Users} title="Rapid Response" desc="24/7 devops monitoring ensuring script patches are pushed within minutes of updates." />
         </div>
       </section>
 
-      {/* Code / Script Snippet */}
-      <section id="script" className="max-w-5xl mx-auto px-6 py-20">
-        <div className="relative group">
-          <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-emerald-900 rounded-[42px] blur-xl opacity-20 group-hover:opacity-30 transition duration-1000"></div>
-          <div className="relative bg-[#050705] border border-white/5 rounded-[40px] overflow-hidden shadow-2xl">
-            <div className="px-6 md:px-10 py-8 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white/[0.01]">
-              <div className="flex items-center gap-3">
-                <div className="flex gap-1.5 mr-4 opacity-50">
-                  <div className="w-2.5 h-2.5 bg-red-500 rounded-full" />
-                  <div className="w-2.5 h-2.5 bg-yellow-500 rounded-full" />
-                  <div className="w-2.5 h-2.5 bg-green-500 rounded-full" />
+      {/* Core Systems */}
+      <section id="core" className="py-32 relative">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="mb-20">
+            <span className="text-emerald-500 text-[10px] font-black uppercase tracking-[0.5em] block mb-4">Internal Systems</span>
+            <h2 className="text-5xl font-black text-white uppercase italic tracking-tighter">Engineered for <br/>Performance.</h2>
+          </div>
+          
+          <div className="grid md:grid-cols-3 gap-12">
+            <CoreSystemCard 
+              icon={Cpu} 
+              title="Kernel Ingress" 
+              desc="Direct memory injection protocol that operates at the assembly level for near-zero detection footprint." 
+            />
+            <CoreSystemCard 
+              icon={ShieldCheck} 
+              title="Identity Cloak" 
+              desc="Spoofs hardware IDs and network signatures dynamically to prevent cross-account flagging." 
+            />
+            <CoreSystemCard 
+              icon={Code2} 
+              title="API V4" 
+              desc="Simplified developer tools allow for 1-click integration with custom scripts and external GUIs." 
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Terminal / Loader Snippet */}
+      <section id="terminal" className="max-w-7xl mx-auto px-6 py-32">
+        <div className="bg-[#0a0c0a] rounded-[48px] p-8 md:p-16 border border-white/5 shadow-3xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/5 blur-[100px] -z-10" />
+            <div className="grid lg:grid-cols-5 gap-16 items-center">
+                <div className="lg:col-span-2">
+                    <h3 className="text-4xl font-black text-white mb-6 uppercase italic leading-tight">Instant <br/>Access.</h3>
+                    <p className="text-slate-500 text-sm leading-relaxed mb-8">Paste this loader into your executor to initialize the BeanHub environment. Supports all V4 compliant tools.</p>
+                    <div className="space-y-4">
+                        <div className="flex items-center gap-4 text-[10px] font-black uppercase text-emerald-500/50 italic">
+                            <Check size={14}/> 100% Virus-Free Verified
+                        </div>
+                        <div className="flex items-center gap-4 text-[10px] font-black uppercase text-emerald-500/50 italic">
+                            <Check size={14}/> Auto-Updating Kernel
+                        </div>
+                    </div>
                 </div>
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest font-mono">Loader.lua</span>
-              </div>
-              <button 
-                onClick={copyToClipboard}
-                className="bg-emerald-500 text-black px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-400 transition-all active:scale-95 shadow-lg shadow-emerald-500/20"
-              >
-                {copied ? <Check size={14} className="animate-bounce" /> : <Copy size={14} />}
-                {copied ? 'Success' : 'Copy Script'}
-              </button>
-            </div>
-            <div className="p-8 md:p-12 font-mono text-xs md:text-sm leading-loose text-emerald-400/90 overflow-x-auto custom-scrollbar">
-              <pre className="selection:bg-emerald-500/40 whitespace-pre-wrap md:whitespace-pre uppercase font-bold tracking-tighter">
-{`-- [[ BEANHUB UNIVERSAL ]] --
--- Auto-detection enabled...
--- Syncing cloud variables...
+                <div className="lg:col-span-3">
+                    <div className="relative group">
+                        <div className="absolute -inset-0.5 bg-emerald-500/20 rounded-3xl blur group-hover:bg-emerald-500/40 transition duration-500" />
+                        <div className="relative bg-black rounded-3xl overflow-hidden border border-white/10">
+                            <div className="flex items-center justify-between px-6 py-4 bg-white/5 border-b border-white/5">
+                                <span className="font-mono text-[10px] font-bold text-slate-500 tracking-widest uppercase">loader.lua</span>
+                                <button 
+                                    onClick={copyToClipboard}
+                                    className="text-emerald-500 hover:text-white transition-colors"
+                                >
+                                    {copied ? <Check size={18} /> : <Copy size={18} />}
+                                </button>
+                            </div>
+                            <div className="p-8 font-mono text-xs md:text-sm text-emerald-400/80 leading-relaxed overflow-x-auto">
+                                <pre className="whitespace-pre-wrap italic">
+{`-- [[ BEANHUB V4 LOADSTRING ]] --
+-- SERVER: GLOBAL_RELAY_01
 
 ${CONFIG.LOADER_SCRIPT}`}
-              </pre>
+                                </pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-          </div>
         </div>
       </section>
 
-      {/* Dev Login Modal */}
-      {showLogin && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/95 backdrop-blur-md transition-all duration-300">
-          <div className="bg-[#0a0a0a] border border-white/10 rounded-[40px] p-8 md:p-12 w-full max-w-md shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500"></div>
-            <button onClick={() => setShowLogin(false)} className="absolute top-8 right-8 text-slate-500 hover:text-white transition-colors">✕</button>
-            <h3 className="text-3xl font-black mb-2 flex items-center gap-3 italic uppercase">
-              <Lock className="text-emerald-500" /> Root Access
-            </h3>
-            <p className="text-slate-500 text-[10px] mb-10 font-bold uppercase tracking-[0.2em]">Developer credentials required for local session.</p>
-            <form onSubmit={handleLogin} className="space-y-6">
-              <input 
-                type="password" 
-                placeholder="Terminal Key" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 focus:outline-none focus:border-emerald-500 transition-all font-mono placeholder:text-slate-700 text-center tracking-widest"
-                autoFocus
-              />
-              <button type="submit" className="w-full bg-emerald-500 text-black py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2">
-                Authorize <ChevronRight size={16} />
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Footer Branding */}
-      <footer className="border-t border-white/5 py-32 px-6 mt-20 relative overflow-hidden">
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-emerald-500/5 blur-[120px] -z-10 rounded-full" />
-        <div className="max-w-7xl mx-auto flex flex-col items-center gap-12">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-16 h-16 bg-white/5 rounded-[24px] flex items-center justify-center text-emerald-500 border border-white/10 group hover:border-emerald-500/50 transition-colors">
-              <Monitor size={32} className="group-hover:scale-110 transition-transform" />
+      {/* Modern Footer */}
+      <footer className="pt-32 pb-16 px-6 border-t border-white/5">
+        <div className="max-w-7xl mx-auto">
+            <div className="flex flex-col md:flex-row justify-between items-start gap-16 mb-24">
+                <div className="max-w-xs">
+                    <div className="font-black text-2xl text-white mb-6 uppercase italic">Bean<span className="text-emerald-500">Hub</span></div>
+                    <p className="text-xs text-slate-600 font-bold leading-relaxed uppercase tracking-tighter">The most stable execution environment ever created for the public market. Built by engineers, for players.</p>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-16">
+                    <FooterColumn title="Platform" links={['Status', 'Features', 'Community']} />
+                    <FooterColumn title="Connect" links={['Discord', 'GitHub', 'Documentation']} />
+                    <FooterColumn title="Company" links={['Privacy', 'TOS', 'Contact']} />
+                </div>
             </div>
-            <span className="font-black text-2xl tracking-tighter text-white uppercase italic">BeanHub <span className="text-emerald-500">Relay</span></span>
-          </div>
-          <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-600 text-center max-w-md leading-relaxed">
-            The world's leading execution network. <br /> Developed with precision. 2026.
-          </div>
-          <div className="flex gap-10">
-            <a href={CONFIG.DISCORD_URL} className="text-slate-500 hover:text-emerald-500 transition-all hover:scale-125"><Disc size={24} /></a>
-            <a href="#" className="text-slate-500 hover:text-emerald-500 transition-all hover:scale-125"><Globe size={24} /></a>
-          </div>
+            <div className="flex flex-col md:flex-row justify-between items-center gap-8 pt-12 border-t border-white/5">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-700">© 2026 BeanHub Network. All Rights Reserved.</span>
+                <div className="flex gap-6">
+                    <a href={CONFIG.DISCORD_URL} className="text-slate-600 hover:text-white transition-colors"><Disc size={20}/></a>
+                    <a href="#" className="text-slate-600 hover:text-white transition-colors"><Monitor size={20}/></a>
+                    <a href="#" className="text-slate-600 hover:text-white transition-colors"><ExternalLink size={20}/></a>
+                </div>
+            </div>
         </div>
       </footer>
 
       <style>{`
-        .animate-spin-slow { animation: spin 8s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes loading { 0% { width: 0%; transform: translateX(-100%); } 50% { width: 100%; transform: translateX(0); } 100% { width: 0%; transform: translateX(100%); } }
-        .custom-scrollbar::-webkit-scrollbar { height: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #10b98133; border-radius: 10px; }
+        .animate-spin { animation: spin 2s linear infinite; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #050705; }
+        ::-webkit-scrollbar-thumb { background: #10b98122; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #10b98144; }
       `}</style>
     </div>
   );
@@ -370,31 +360,54 @@ ${CONFIG.LOADER_SCRIPT}`}
 
 // --- SUB-COMPONENTS ---
 
-function StatusCard({ title, active, Icon, desc }) {
+function ModernStatusRow({ name, version, status, icon: Icon, delay }) {
   return (
-    <div className={`bg-white/5 border border-white/10 rounded-[32px] p-8 transition-all duration-500 group hover:bg-white/[0.08] hover:border-emerald-500/30 ${!active && 'opacity-40 grayscale blur-[0.5px]'}`}>
-      <div className="flex justify-between items-start mb-10">
-        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${active ? 'bg-emerald-500/10 text-emerald-500 group-hover:scale-110 shadow-lg shadow-emerald-500/5' : 'bg-red-500/10 text-red-500'}`}>
-          {active ? (Icon && <Icon size={28} />) : <ZapOff size={28} />}
+    <div className={`group p-6 rounded-3xl border transition-all duration-500 bg-white/[0.02] border-white/5 hover:border-emerald-500/20 ${!status && 'opacity-40 grayscale'}`}>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="flex items-center gap-6">
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${status ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+            {Icon && <Icon size={24} />}
+          </div>
+          <div>
+            <h4 className="font-black text-xl text-white uppercase italic tracking-tighter">{name}</h4>
+            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{version} // Latency: {delay}</span>
+          </div>
         </div>
-        <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${active ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-black' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
-          {active ? 'Relay Active' : 'Offline'}
+        <div className="flex items-center gap-3">
+            <div className={`w-2 h-2 rounded-full ${status ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+            <span className={`text-[11px] font-black uppercase tracking-widest ${status ? 'text-emerald-500' : 'text-red-500'}`}>
+                {status ? 'Online' : 'Maintenance'}
+            </span>
         </div>
       </div>
-      <h4 className="font-black text-2xl mb-2 italic tracking-tight uppercase group-hover:text-emerald-400 transition-colors">{title}</h4>
-      <p className="text-[10px] text-slate-500 leading-relaxed font-bold uppercase tracking-tight">{desc}</p>
     </div>
   );
 }
 
-function FeatureCard({ Icon, title, desc }) {
+function CoreSystemCard({ icon: Icon, title, desc }) {
   return (
-    <div className="bg-white/[0.03] border border-white/5 rounded-[40px] p-10 hover:bg-white/[0.06] transition-all group hover:border-emerald-500/20">
-      <div className="w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-500 mb-8 group-hover:scale-110 transition-transform group-hover:bg-emerald-500/20">
-        <Icon size={32} />
+    <div className="group p-8 rounded-[32px] bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all relative overflow-hidden">
+      <div className="absolute -bottom-8 -right-8 text-white/[0.02] group-hover:text-emerald-500/[0.05] transition-colors">
+        {Icon && <Icon size={120} strokeWidth={1} />}
       </div>
-      <h4 className="text-2xl font-black mb-4 uppercase tracking-tighter italic">{title}</h4>
-      <p className="text-slate-400 text-sm font-medium leading-relaxed">{desc}</p>
+      <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-500 mb-8 group-hover:scale-110 transition-transform">
+        {Icon && <Icon size={28} />}
+      </div>
+      <h4 className="text-2xl font-black text-white mb-4 uppercase italic tracking-tighter">{title}</h4>
+      <p className="text-slate-500 text-sm font-medium leading-relaxed relative z-10">{desc}</p>
+    </div>
+  );
+}
+
+function FooterColumn({ title, links }) {
+  return (
+    <div>
+      <h5 className="text-[11px] font-black text-white uppercase tracking-widest mb-6">{title}</h5>
+      <ul className="space-y-4">
+        {links.map(link => (
+          <li key={link}><a href="#" className="text-xs text-slate-600 hover:text-emerald-500 transition-colors uppercase font-bold tracking-tighter italic">{link}</a></li>
+        ))}
+      </ul>
     </div>
   );
 }
