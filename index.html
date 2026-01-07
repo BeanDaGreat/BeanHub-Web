@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot, updateDoc } from 'firebase/firestore';
@@ -21,45 +21,59 @@ import {
   Monitor
 } from 'lucide-react';
 
-// --- FIREBASE CONFIGURATION ---
+// --- CENTRAL CONFIGURATION ---
+// Edit these values to update the site content easily
+const CONFIG = {
+  APP_ID: typeof __app_id !== 'undefined' ? __app_id : 'beanhub-prod',
+  ADMIN_PASSWORD: '@lesam625',
+  DISCORD_URL: 'https://discord.gg/beanhub',
+  LOADER_SCRIPT: `loadstring(game:HttpGet("https://raw.githubusercontent.com/BeanHub/Main/main/loader.lua"))()`,
+  INITIAL_STATUS: {
+    wave: true,
+    delta: true,
+    fluxus: false,
+    updateMsg: "System Optimal",
+    lastUpdated: Date.now()
+  }
+};
+
+// --- FIREBASE INITIALIZATION ---
 const firebaseConfig = JSON.parse(__firebase_config);
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'beanhub-prod';
 
 export default function App() {
+  // Authentication & Role State
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  
+  // UI State
   const [showLogin, setShowLogin] = useState(false);
   const [password, setPassword] = useState('');
   const [copied, setCopied] = useState(false);
   const [activeUsers, setActiveUsers] = useState(1420);
   const [isBooting, setIsBooting] = useState(true);
   
-  // Local state synced with Firestore
-  const [status, setStatus] = useState({
-    wave: true,
-    delta: true,
-    fluxus: false,
-    updateMsg: "System Optimal",
-    lastUpdated: Date.now()
-  });
+  // Real-time Status State
+  const [status, setStatus] = useState(CONFIG.INITIAL_STATUS);
 
-  // Simulated live user fluctuation
+  // --- LIFECYCLE: UI EFFECTS ---
   useEffect(() => {
-    const interval = setInterval(() => {
+    const userInterval = setInterval(() => {
       setActiveUsers(prev => prev + Math.floor(Math.random() * 7) - 3);
     }, 3000);
-    // Initial boot delay for polish
-    const timer = setTimeout(() => setIsBooting(false), 800);
+    
+    const bootTimer = setTimeout(() => setIsBooting(false), 800);
+    
     return () => {
-      clearInterval(interval);
-      clearTimeout(timer);
+      clearInterval(userInterval);
+      clearTimeout(bootTimer);
     };
   }, []);
 
-  // (1) Auth Setup - MANDATORY RULE 3
+  // --- LIFECYCLE: AUTHENTICATION (RULE 3) ---
   useEffect(() => {
     const initAuth = async () => {
       try {
@@ -69,98 +83,102 @@ export default function App() {
           await signInAnonymously(auth);
         }
       } catch (err) {
-        console.error("Auth failed:", err);
+        console.error("Auth initialization failed:", err);
+      } finally {
+        setIsAuthLoading(false);
       }
     };
+    
     initAuth();
     const unsubscribe = onAuthStateChanged(auth, (u) => setUser(u));
     return () => unsubscribe();
   }, []);
 
-  // (2) Sync Data - MANDATORY RULE 1
+  // --- LIFECYCLE: FIRESTORE SYNC (RULE 1 & 2) ---
   useEffect(() => {
-    if (!user) return;
+    if (!user || isAuthLoading) return;
     
-    const statusDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'system', 'status');
+    const statusDocRef = doc(db, 'artifacts', CONFIG.APP_ID, 'public', 'data', 'system', 'status');
     
     const unsubscribe = onSnapshot(statusDocRef, (docSnap) => {
       if (docSnap.exists()) {
         setStatus(docSnap.data());
       } else {
-        // Init if doesn't exist
-        setDoc(statusDocRef, {
-          wave: true,
-          delta: true,
-          fluxus: false,
-          updateMsg: "Initial Boot Success",
-          lastUpdated: Date.now()
-        });
+        // Initialize document if it doesn't exist in the specific path
+        setDoc(statusDocRef, CONFIG.INITIAL_STATUS);
       }
-    }, (err) => console.error("Firestore Sync Error:", err));
+    }, (err) => {
+      console.error("Firestore sync interrupted:", err);
+    });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, isAuthLoading]);
 
-  // Actions
-  const updateGlobalStatus = async (newStatusUpdate) => {
+  // --- HANDLERS ---
+  const updateGlobalStatus = async (updates) => {
     if (!isAdmin || !user) return;
-    const statusDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'system', 'status');
+    const statusDocRef = doc(db, 'artifacts', CONFIG.APP_ID, 'public', 'data', 'system', 'status');
     try {
       await updateDoc(statusDocRef, { 
-        ...newStatusUpdate,
+        ...updates,
         lastUpdated: Date.now()
       });
     } catch (err) {
-      console.error("Update failed:", err);
+      console.error("Failed to update system status:", err);
     }
   };
 
   const handleLogin = (e) => {
     e.preventDefault();
-    if (password === '@lesam625') { 
+    if (password === CONFIG.ADMIN_PASSWORD) { 
       setIsAdmin(true);
       setShowLogin(false);
       setPassword('');
     } else {
       setPassword('');
-      // Trigger a small shake or feedback here if desired
+      // Visual feedback for wrong password could be added here
     }
   };
 
   const copyToClipboard = useCallback(() => {
-    const code = `loadstring(game:HttpGet("https://raw.githubusercontent.com/BeanHub/Main/main/loader.lua"))()`;
-    
-    // Fallback for document.execCommand in iframe environments
     const textArea = document.createElement("textarea");
-    textArea.value = code;
-    textArea.style.position = "fixed";
-    textArea.style.left = "-9999px";
-    textArea.style.top = "0";
+    textArea.value = CONFIG.LOADER_SCRIPT;
+    // Ensure element is not visible but part of DOM for execCommand
+    Object.assign(textArea.style, {
+      position: "fixed",
+      left: "-9999px",
+      top: "0"
+    });
     document.body.appendChild(textArea);
     textArea.focus();
     textArea.select();
     
     try {
-      const successful = document.execCommand('copy');
-      if (successful) {
+      if (document.execCommand('copy')) {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       }
     } catch (err) {
-      console.error("Copy failed", err);
+      console.error("Unable to copy to clipboard", err);
     }
     document.body.removeChild(textArea);
   }, []);
 
-  // Derived State
-  const securityScore = (status.wave ? 45 : 0) + (status.delta ? 45 : 0) + (status.fluxus ? 8.4 : 2);
+  // --- MEMOIZED CALCULATIONS ---
+  const securityScore = useMemo(() => {
+    const score = (status.wave ? 45 : 0) + (status.delta ? 45 : 0) + (status.fluxus ? 8.4 : 2);
+    return score.toFixed(1);
+  }, [status]);
 
+  // --- RENDER: LOADING STATE ---
   if (isBooting) {
     return (
       <div className="min-h-screen bg-[#020402] flex items-center justify-center font-mono text-emerald-500">
-        <div className="space-y-2">
-          <p className="animate-pulse">_ BOOTING BEANHUB_OS...</p>
-          <p className="text-[10px] opacity-50 uppercase tracking-widest">Establishing encrypted tunnel</p>
+        <div className="space-y-2 text-center">
+          <p className="animate-pulse tracking-tighter">_ INITIALIZING BEANHUB_CORE...</p>
+          <div className="w-48 h-1 bg-white/5 rounded-full overflow-hidden mx-auto">
+            <div className="h-full bg-emerald-500 animate-[loading_1s_ease-in-out_infinite]" />
+          </div>
         </div>
       </div>
     );
@@ -168,11 +186,11 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#020402] text-slate-200 font-sans selection:bg-emerald-500/30 overflow-x-hidden">
-      {/* Background Pattern */}
-      <div className="fixed inset-0 pointer-events-none opacity-20" 
+      {/* Background Grid Layer */}
+      <div className="fixed inset-0 pointer-events-none opacity-20 z-0" 
            style={{backgroundImage: `radial-gradient(#10b981 0.5px, transparent 0.5px)`, backgroundSize: '24px 24px'}}></div>
       
-      {/* Navbar */}
+      {/* Navigation Bar */}
       <nav className="fixed top-0 w-full z-[60] px-4 py-4 md:px-6 md:py-6">
         <div className="max-w-7xl mx-auto flex items-center justify-between bg-black/40 backdrop-blur-xl border border-white/5 rounded-2xl px-4 md:px-8 py-4">
           <div className="flex items-center gap-3">
@@ -181,33 +199,35 @@ export default function App() {
             </div>
             <span className="font-black text-xl tracking-tighter uppercase">Bean<span className="text-emerald-500">Hub</span></span>
           </div>
+          
           <div className="hidden lg:flex gap-8 text-[10px] font-black uppercase tracking-widest text-slate-500">
-            <a href="#status" className="hover:text-emerald-400 transition-colors">Network</a>
-            <a href="#features" className="hover:text-emerald-400 transition-colors">Core</a>
-            <a href="#script" className="hover:text-emerald-400 transition-colors">Script</a>
+            {['status', 'features', 'script'].map(link => (
+              <a key={link} href={`#${link}`} className="hover:text-emerald-400 transition-colors uppercase">{link}</a>
+            ))}
             <button onClick={() => setShowLogin(true)} className="hover:text-emerald-400 transition-colors flex items-center gap-2">
               <Lock size={12} /> {isAdmin ? 'Root: Active' : 'Dev Login'}
             </button>
           </div>
+
           <div className="flex items-center gap-4">
              <div className="hidden sm:flex flex-col items-end leading-none">
                 <span className="text-[10px] font-black text-emerald-500">{activeUsers.toLocaleString()}</span>
                 <span className="text-[8px] font-bold text-slate-600 uppercase tracking-tighter">Live Sessions</span>
              </div>
-             <a href="https://discord.gg/beanhub" target="_blank" rel="noreferrer" className="bg-emerald-500 text-black px-6 py-2 rounded-lg text-xs font-black uppercase tracking-wider hover:bg-emerald-400 transition-all">Discord</a>
+             <a href={CONFIG.DISCORD_URL} target="_blank" rel="noreferrer" className="bg-emerald-500 text-black px-6 py-2 rounded-lg text-xs font-black uppercase tracking-wider hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/10">Discord</a>
           </div>
         </div>
       </nav>
 
-      {/* Hero */}
-      <section className="pt-48 md:pt-56 pb-20 md:pb-32 px-6 text-center relative overflow-hidden">
+      {/* Hero Section */}
+      <header className="pt-48 md:pt-56 pb-20 md:pb-32 px-6 text-center relative overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1200px] h-[600px] bg-emerald-500/5 blur-[140px] -z-10 rounded-full" />
         <div className="inline-flex items-center gap-2 px-4 py-2 mb-8 text-[10px] font-black tracking-widest text-emerald-400 bg-emerald-400/5 rounded-full border border-emerald-400/10">
           <Activity size={12} className="animate-pulse" />
           V4.0 CLOUD ARCHITECTURE
         </div>
         <h1 className="text-5xl md:text-9xl font-black tracking-tighter mb-8 leading-[0.85]">
-          The Industry <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-emerald-500 to-emerald-800">Standard.</span>
+          The Industry <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-emerald-500 to-emerald-800 uppercase">Standard.</span>
         </h1>
         <p className="max-w-xl mx-auto text-slate-400 text-base md:text-lg mb-12 font-medium">
           Premium infrastructure providing instant script execution and unmatched stability across all platforms.
@@ -226,12 +246,13 @@ export default function App() {
             Check Status
           </button>
         </div>
-      </section>
+      </header>
 
-      {/* Stats Section */}
-      <section id="status" className="max-w-7xl mx-auto px-6 py-20 border-y border-white/[0.03]">
+      {/* Grid Content Section */}
+      <main id="status" className="max-w-7xl mx-auto px-6 py-20 border-y border-white/[0.03]">
         <div className="grid lg:grid-cols-4 gap-8">
-          {/* Admin Panel */}
+          
+          {/* Sidebar Admin Controls */}
           <div className={`lg:col-span-1 transition-all duration-500 ${isAdmin ? 'opacity-100' : 'opacity-20 grayscale pointer-events-none hidden lg:block'}`}>
             <div className="bg-white/5 border border-white/10 rounded-[32px] p-8 sticky top-32 backdrop-blur-sm">
               <div className="flex items-center gap-3 mb-8">
@@ -263,6 +284,7 @@ export default function App() {
             </div>
           </div>
 
+          {/* Main Network Status */}
           <div className="lg:col-span-3 grid md:grid-cols-3 gap-6">
             <div className="md:col-span-3 flex flex-col md:flex-row md:items-center justify-between gap-4 px-2 mb-2">
               <h2 className="text-4xl font-black tracking-tight uppercase italic">Network <span className="text-emerald-500">Relay</span></h2>
@@ -278,24 +300,28 @@ export default function App() {
             <StatusCard title="Delta Mobile" active={status.delta} Icon={Disc} desc="Standard Android framework support." />
             <StatusCard title="Fluxus Cloud" active={status.fluxus} Icon={Zap} desc="Legacy relay / Maintenance." />
             
+            {/* Stability Index Card */}
             <div className="md:col-span-3 bg-gradient-to-br from-emerald-500/[0.07] to-transparent border border-emerald-500/20 rounded-[32px] p-10 flex flex-col md:flex-row items-center justify-between gap-8">
                <div className="text-center md:text-left">
                   <div className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1">Stability Index</div>
-                  <div className="text-5xl font-black italic">{securityScore.toFixed(1)}%</div>
+                  <div className="text-5xl font-black italic">{securityScore}%</div>
                   <div className="text-xs text-slate-500 font-bold mt-2 uppercase tracking-tight italic">Global infrastructure health report.</div>
                </div>
                <div className="flex gap-4 items-end h-16">
-                  <div className={`w-1.5 h-6 rounded-full ${securityScore > 20 ? 'bg-emerald-500' : 'bg-white/10'} transition-colors`} />
-                  <div className={`w-1.5 h-10 rounded-full ${securityScore > 50 ? 'bg-emerald-500' : 'bg-white/10'} transition-colors`} />
-                  <div className={`w-1.5 h-14 rounded-full ${securityScore > 80 ? 'bg-emerald-500' : 'bg-white/10'} transition-colors`} />
-                  <div className={`w-1.5 h-16 rounded-full ${securityScore > 95 ? 'bg-emerald-500' : 'bg-white/10'} transition-colors`} />
+                  {[20, 50, 80, 95].map(threshold => (
+                    <div 
+                      key={threshold} 
+                      className={`w-1.5 rounded-full transition-all duration-700 ${Number(securityScore) >= threshold ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-white/10'}`} 
+                      style={{ height: `${(threshold / 100) * 100}%` }}
+                    />
+                  ))}
                </div>
             </div>
           </div>
         </div>
-      </section>
+      </main>
 
-      {/* Features Section */}
+      {/* Features Grid */}
       <section id="features" className="max-w-7xl mx-auto px-6 py-32">
         <div className="text-center mb-20">
           <h2 className="text-4xl font-black mb-4 tracking-tighter uppercase italic">System <span className="text-emerald-500">Core</span></h2>
@@ -308,7 +334,7 @@ export default function App() {
         </div>
       </section>
 
-      {/* Script Section */}
+      {/* Code / Script Snippet */}
       <section id="script" className="max-w-5xl mx-auto px-6 py-20">
         <div className="relative group">
           <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-emerald-900 rounded-[42px] blur-xl opacity-20 group-hover:opacity-30 transition duration-1000"></div>
@@ -320,7 +346,7 @@ export default function App() {
                   <div className="w-2.5 h-2.5 bg-yellow-500/40 rounded-full" />
                   <div className="w-2.5 h-2.5 bg-green-500/40 rounded-full" />
                 </div>
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Main_loader.lua</span>
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest font-mono">Loader.lua</span>
               </div>
               <button 
                 onClick={copyToClipboard}
@@ -336,21 +362,21 @@ export default function App() {
 -- Auto-detection enabled...
 -- Syncing cloud variables...
 
-loadstring(game:HttpGet("https://raw.githubusercontent.com/BeanHub/Main/main/loader.lua"))()`}
+${CONFIG.LOADER_SCRIPT}`}
               </pre>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Login Modal */}
+      {/* Dev Login Modal */}
       {showLogin && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/95 backdrop-blur-md transition-all duration-300">
           <div className="bg-[#0a0a0a] border border-white/10 rounded-[40px] p-8 md:p-12 w-full max-w-md shadow-2xl relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500"></div>
             <button onClick={() => setShowLogin(false)} className="absolute top-8 right-8 text-slate-500 hover:text-white transition-colors">✕</button>
-            <h3 className="text-3xl font-black mb-2 flex items-center gap-3 italic">
-              <Lock className="text-emerald-500" /> ROOT ACCESS
+            <h3 className="text-3xl font-black mb-2 flex items-center gap-3 italic uppercase">
+              <Lock className="text-emerald-500" /> Root Access
             </h3>
             <p className="text-slate-500 text-[10px] mb-10 font-bold uppercase tracking-[0.2em]">Developer credentials required for sync.</p>
             <form onSubmit={handleLogin} className="space-y-6">
@@ -370,7 +396,7 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/BeanHub/Main/main/loa
         </div>
       )}
 
-      {/* Footer */}
+      {/* Footer Branding */}
       <footer className="border-t border-white/5 py-32 px-6 mt-20 relative overflow-hidden">
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-emerald-500/5 blur-[120px] -z-10 rounded-full" />
         <div className="max-w-7xl mx-auto flex flex-col items-center gap-12">
@@ -381,10 +407,10 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/BeanHub/Main/main/loa
             <span className="font-black text-2xl tracking-tighter text-white uppercase italic">BeanHub <span className="text-emerald-500">Relay</span></span>
           </div>
           <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-600 text-center max-w-md leading-relaxed">
-            The world's leading Roblox execution network. <br /> Developed with precision. 2026.
+            The world's leading execution network. <br /> Developed with precision. 2026.
           </div>
           <div className="flex gap-10">
-            <a href="#" className="text-slate-500 hover:text-emerald-500 transition-all hover:scale-125"><Disc size={24} /></a>
+            <a href={CONFIG.DISCORD_URL} className="text-slate-500 hover:text-emerald-500 transition-all hover:scale-125"><Disc size={24} /></a>
             <a href="#" className="text-slate-500 hover:text-emerald-500 transition-all hover:scale-125"><Globe size={24} /></a>
           </div>
         </div>
@@ -393,6 +419,7 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/BeanHub/Main/main/loa
       <style>{`
         .animate-spin-slow { animation: spin 8s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes loading { 0% { width: 0%; transform: translateX(-100%); } 50% { width: 100%; transform: translateX(0); } 100% { width: 0%; transform: translateX(100%); } }
         .custom-scrollbar::-webkit-scrollbar { height: 6px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #10b98133; border-radius: 10px; }
@@ -400,6 +427,8 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/BeanHub/Main/main/loa
     </div>
   );
 }
+
+// --- SUB-COMPONENTS ---
 
 function StatusCard({ title, active, Icon, desc }) {
   return (
