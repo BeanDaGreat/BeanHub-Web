@@ -1,413 +1,222 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { 
-  Terminal, 
-  Copy, 
-  Check, 
-  Globe,
-  Disc,
-  Zap,
-  Waves,
-  ShieldCheck,
-  ZapOff,
-  Users,
-  Layers,
-  Activity,
-  ChevronRight,
-  Monitor,
-  Cpu,
-  Radio,
-  ExternalLink,
-  Code2
-} from 'lucide-react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bean Hub | Roblox Script</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+        
+        body {
+            background-color: #060a0f;
+            color: #f8fafc;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .glass-card {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 8px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+        .status-working { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+        .status-risky { background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.3); }
+        .status-patched { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        
+        pre {
+            scrollbar-width: thin;
+            scrollbar-color: #166534 #060a0f;
+        }
+        #copy-notification {
+            transform: translateX(-50%) translateY(100px);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        #copy-notification.show {
+            transform: translateX(-50%) translateY(0);
+        }
+        .bean-glow {
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.1);
+        }
+    </style>
+</head>
+<body class="min-h-screen selection:bg-green-500/30">
 
-// --- CENTRAL CONFIGURATION ---
-const CONFIG = {
-  DISCORD_URL: 'https://discord.gg/beanhub',
-  LOADER_SCRIPT: `loadstring(game:HttpGet("https://raw.githubusercontent.com/BeanHub/Main/main/loader.lua"))()`,
-  STATUS: {
-    wave: true,
-    delta: true,
-    fluxus: false,
-    updateMsg: "System Optimal: Nodes 1-4 Synchronized"
-  }
-};
-
-export default function App() {
-  // UI State
-  const [copied, setCopied] = useState(false);
-  const [activeUsers, setActiveUsers] = useState(1420);
-  const [isBooting, setIsBooting] = useState(true);
-  const [terminalLines, setTerminalLines] = useState([]);
-  
-  // --- LIFECYCLE: UI EFFECTS ---
-  useEffect(() => {
-    const userInterval = setInterval(() => {
-      setActiveUsers(prev => prev + Math.floor(Math.random() * 7) - 3);
-    }, 3000);
-    
-    const bootTimer = setTimeout(() => setIsBooting(false), 1200);
-    
-    return () => {
-      clearInterval(userInterval);
-      clearTimeout(bootTimer);
-    };
-  }, []);
-
-  // CLI Animation Effect
-  useEffect(() => {
-    if (isBooting) return;
-    const lines = [
-      "> INITIALIZING BEANHUB_V4_KERNEL...",
-      "> CONNECTING TO EDGE_NODES [HK, SF, LON]...",
-      "> BYPASSING HYPERION_HEURISTICS... SUCCESS",
-      "> CLOUD_SYNC: OK",
-      "> READY."
-    ];
-    let i = 0;
-    const interval = setInterval(() => {
-      if (i < lines.length) {
-        setTerminalLines(prev => [...prev, lines[i]]);
-        i++;
-      } else {
-        clearInterval(interval);
-      }
-    }, 400);
-    return () => clearInterval(interval);
-  }, [isBooting]);
-
-  // --- HANDLERS ---
-  const copyToClipboard = useCallback(() => {
-    const textArea = document.createElement("textarea");
-    textArea.value = CONFIG.LOADER_SCRIPT;
-    Object.assign(textArea.style, {
-      position: "fixed",
-      left: "-9999px",
-      top: "0"
-    });
-    document.body.appendChild(textArea);
-    textArea.focus();
-    textArea.select();
-    
-    try {
-      document.execCommand('copy');
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error("Unable to copy to clipboard", err);
-    }
-    document.body.removeChild(textArea);
-  }, []);
-
-  // --- MEMOIZED CALCULATIONS ---
-  const securityScore = useMemo(() => {
-    const score = (CONFIG.STATUS.wave ? 45 : 0) + (CONFIG.STATUS.delta ? 45 : 0) + (CONFIG.STATUS.fluxus ? 8.4 : 2);
-    return score.toFixed(1);
-  }, []);
-
-  // --- RENDER: LOADING STATE ---
-  if (isBooting) {
-    return (
-      <div className="min-h-screen bg-[#050705] flex items-center justify-center font-mono">
-        <div className="relative">
-          <div className="w-24 h-24 border-t-2 border-emerald-500 rounded-full animate-spin" />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-12 h-12 bg-emerald-500/20 rounded-full animate-pulse" />
-          </div>
-          <p className="mt-8 text-emerald-500 text-[10px] tracking-[0.3em] font-black uppercase text-center">Loading Hub</p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-[#050705] text-slate-300 font-sans selection:bg-emerald-500/30 overflow-x-hidden">
-      {/* Dynamic Background Noise/Pattern */}
-      <div className="fixed inset-0 pointer-events-none opacity-[0.03] z-0" 
-           style={{backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3 Vag%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`}}></div>
-      
-      {/* Navigation */}
-      <nav className="fixed top-0 w-full z-[100] p-6">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4 group cursor-default">
-            <div className="relative">
-              <div className="absolute -inset-2 bg-emerald-500/20 blur-md rounded-full group-hover:bg-emerald-500/40 transition-all" />
-              <div className="relative w-12 h-12 bg-black border border-emerald-500/20 rounded-2xl flex items-center justify-center text-emerald-500 shadow-2xl">
-                <Terminal size={24} />
-              </div>
-            </div>
-            <div>
-              <h1 className="font-black text-2xl tracking-tighter leading-none text-white">BEAN<span className="text-emerald-500">HUB</span></h1>
-              <span className="text-[9px] font-bold text-emerald-500/50 uppercase tracking-[0.2em]">Established 2024</span>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-8">
-            <div className="hidden lg:flex gap-8 text-[11px] font-black uppercase tracking-widest">
-              {['status', 'core', 'terminal'].map(link => (
-                <a key={link} href={`#${link}`} className="text-slate-500 hover:text-white transition-colors">/{link}</a>
-              ))}
-            </div>
-            <a href={CONFIG.DISCORD_URL} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-emerald-500 hover:bg-emerald-400 text-black px-6 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-500/20 active:scale-95">
-              <Disc size={16} /> Community
-            </a>
-          </div>
-        </div>
-      </nav>
-
-      {/* Hero: Terminal Style */}
-      <header className="relative pt-44 pb-32 px-6">
-        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
-          <div className="relative z-10">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-6 text-[10px] font-black tracking-widest text-emerald-400 bg-emerald-400/5 rounded-md border border-emerald-400/10 uppercase">
-              <Activity size={12} />
-              Live Pulse: {activeUsers} Connections
-            </div>
-            <h2 className="text-6xl md:text-8xl font-black text-white leading-[0.9] mb-8 uppercase italic tracking-tighter">
-              The Next <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-200">Evolution.</span>
-            </h2>
-            <p className="text-slate-500 text-lg max-w-md mb-10 font-medium">
-              We build the infrastructure. You dominate the game. Experience the fastest execution speeds in the market with BeanHub V4.
-            </p>
-            <div className="flex flex-wrap gap-4">
-              <button 
-                onClick={() => document.getElementById('terminal')?.scrollIntoView({ behavior: 'smooth' })}
-                className="group relative px-8 py-4 bg-white text-black font-black uppercase tracking-widest text-xs rounded-lg overflow-hidden transition-all"
-              >
-                <div className="absolute inset-0 bg-emerald-500 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                <span className="relative group-hover:text-black transition-colors flex items-center gap-2">Get Started <ChevronRight size={14} /></span>
-              </button>
-              <div className="flex items-center gap-4 px-6 py-4 rounded-lg border border-white/5 bg-white/[0.02]">
-                <Radio className="text-emerald-500 animate-pulse" size={16} />
-                <span className="text-[10px] font-black uppercase tracking-widest text-white">Status: Nominal</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="relative">
-            <div className="absolute -inset-4 bg-emerald-500/10 blur-3xl rounded-full" />
-            <div className="relative bg-black/40 border border-white/10 backdrop-blur-xl rounded-3xl overflow-hidden shadow-2xl">
-              <div className="px-6 py-4 bg-white/[0.03] border-b border-white/10 flex items-center justify-between">
-                <div className="flex gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full bg-red-500/20" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/20" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/20" />
-                </div>
-                <span className="text-[9px] font-black text-slate-600 uppercase tracking-[0.3em]">Bean_Kernel_Terminal</span>
-              </div>
-              <div className="p-8 font-mono text-[13px] min-h-[300px]">
-                {terminalLines.map((line, idx) => (
-                  <div key={idx} className="mb-2 flex gap-4">
-                    <span className="text-slate-700">{idx + 1}</span>
-                    <span className={(line && (line.includes('SUCCESS') || line.includes('READY'))) ? 'text-emerald-400 font-bold' : 'text-slate-400'}>
-                      {line}
-                    </span>
-                  </div>
-                ))}
-                {!isBooting && terminalLines.length === 5 && (
-                  <div className="mt-4 flex gap-4">
-                    <span className="text-slate-700">6</span>
-                    <span className="w-2 h-4 bg-emerald-500 animate-pulse" />
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Network Architecture (Reworked Status) */}
-      <section id="status" className="max-w-7xl mx-auto px-6 py-32 border-t border-white/5">
-        <div className="flex flex-col md:flex-row gap-16 items-start">
-          <div className="md:w-1/3 sticky top-32">
-            <h3 className="text-4xl font-black text-white mb-6 uppercase italic tracking-tighter">Network <br/><span className="text-emerald-500">Architecture</span></h3>
-            <p className="text-slate-500 text-sm leading-relaxed mb-8">Our cloud nodes are distributed globally to ensure minimum latency regardless of your location. Monitoring 24/7.</p>
-            <div className="p-6 rounded-2xl bg-emerald-500/5 border border-emerald-500/10">
-              <div className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-4">Relay Intelligence</div>
-              <div className="text-3xl font-black text-white italic">{securityScore}%</div>
-              <p className="text-[9px] text-slate-600 font-bold uppercase mt-2 italic">Infrastructure Integrity Index</p>
-            </div>
-          </div>
-          
-          <div className="md:w-2/3 grid gap-4 w-full">
-            <ModernStatusRow name="Wave Executor" version="V2.1.4" status={CONFIG.STATUS.wave} icon={Waves} delay="0ms" />
-            <ModernStatusRow name="Delta Mobile" version="BETA 4" status={CONFIG.STATUS.delta} icon={Disc} delay="12ms" />
-            <ModernStatusRow name="Fluxus Relay" version="LEGACY" status={CONFIG.STATUS.fluxus} icon={ZapOff} delay="--" />
-            <div className="p-6 rounded-3xl bg-white/[0.02] border border-white/5 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-slate-500">
-                        <Globe size={20} />
-                    </div>
-                    <div>
-                        <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Global Broadcast</div>
-                        <div className="text-sm font-bold text-white uppercase italic">{CONFIG.STATUS.updateMsg}</div>
-                    </div>
-                </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Core Systems */}
-      <section id="core" className="py-32 relative">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="mb-20">
-            <span className="text-emerald-500 text-[10px] font-black uppercase tracking-[0.5em] block mb-4">Internal Systems</span>
-            <h2 className="text-5xl font-black text-white uppercase italic tracking-tighter">Engineered for <br/>Performance.</h2>
-          </div>
-          
-          <div className="grid md:grid-cols-3 gap-12">
-            <CoreSystemCard 
-              icon={Cpu} 
-              title="Kernel Ingress" 
-              desc="Direct memory injection protocol that operates at the assembly level for near-zero detection footprint." 
-            />
-            <CoreSystemCard 
-              icon={ShieldCheck} 
-              title="Identity Cloak" 
-              desc="Spoofs hardware IDs and network signatures dynamically to prevent cross-account flagging." 
-            />
-            <CoreSystemCard 
-              icon={Code2} 
-              title="API V4" 
-              desc="Simplified developer tools allow for 1-click integration with custom scripts and external GUIs." 
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Terminal / Loader Snippet */}
-      <section id="terminal" className="max-w-7xl mx-auto px-6 py-32">
-        <div className="bg-[#0a0c0a] rounded-[48px] p-8 md:p-16 border border-white/5 shadow-3xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/5 blur-[100px] -z-10" />
-            <div className="grid lg:grid-cols-5 gap-16 items-center">
-                <div className="lg:col-span-2">
-                    <h3 className="text-4xl font-black text-white mb-6 uppercase italic leading-tight">Instant <br/>Access.</h3>
-                    <p className="text-slate-500 text-sm leading-relaxed mb-8">Paste this loader into your executor to initialize the BeanHub environment. Supports all V4 compliant tools.</p>
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-4 text-[10px] font-black uppercase text-emerald-500/50 italic">
-                            <Check size={14}/> 100% Virus-Free Verified
-                        </div>
-                        <div className="flex items-center gap-4 text-[10px] font-black uppercase text-emerald-500/50 italic">
-                            <Check size={14}/> Auto-Updating Kernel
-                        </div>
-                    </div>
-                </div>
-                <div className="lg:col-span-3">
-                    <div className="relative group">
-                        <div className="absolute -inset-0.5 bg-emerald-500/20 rounded-3xl blur group-hover:bg-emerald-500/40 transition duration-500" />
-                        <div className="relative bg-black rounded-3xl overflow-hidden border border-white/10">
-                            <div className="flex items-center justify-between px-6 py-4 bg-white/5 border-b border-white/5">
-                                <span className="font-mono text-[10px] font-bold text-slate-500 tracking-widest uppercase">loader.lua</span>
-                                <button 
-                                    onClick={copyToClipboard}
-                                    className="text-emerald-500 hover:text-white transition-colors"
-                                >
-                                    {copied ? <Check size={18} /> : <Copy size={18} />}
-                                </button>
-                            </div>
-                            <div className="p-8 font-mono text-xs md:text-sm text-emerald-400/80 leading-relaxed overflow-x-auto">
-                                <pre className="whitespace-pre-wrap italic">
-{`-- [[ BEANHUB V4 LOADSTRING ]] --
--- SERVER: GLOBAL_RELAY_01
-
-${CONFIG.LOADER_SCRIPT}`}
-                                </pre>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-      </section>
-
-      {/* Modern Footer */}
-      <footer className="pt-32 pb-16 px-6 border-t border-white/5">
-        <div className="max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row justify-between items-start gap-16 mb-24">
-                <div className="max-w-xs">
-                    <div className="font-black text-2xl text-white mb-6 uppercase italic">Bean<span className="text-emerald-500">Hub</span></div>
-                    <p className="text-xs text-slate-600 font-bold leading-relaxed uppercase tracking-tighter">The most stable execution environment ever created for the public market. Built by engineers, for players.</p>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-16">
-                    <FooterColumn title="Platform" links={['Status', 'Features', 'Community']} />
-                    <FooterColumn title="Connect" links={['Discord', 'GitHub', 'Documentation']} />
-                    <FooterColumn title="Company" links={['Privacy', 'TOS', 'Contact']} />
-                </div>
-            </div>
-            <div className="flex flex-col md:flex-row justify-between items-center gap-8 pt-12 border-t border-white/5">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-700">© 2026 BeanHub Network. All Rights Reserved.</span>
-                <div className="flex gap-6">
-                    <a href={CONFIG.DISCORD_URL} className="text-slate-600 hover:text-white transition-colors"><Disc size={20}/></a>
-                    <a href="#" className="text-slate-600 hover:text-white transition-colors"><Monitor size={20}/></a>
-                    <a href="#" className="text-slate-600 hover:text-white transition-colors"><ExternalLink size={20}/></a>
-                </div>
-            </div>
-        </div>
-      </footer>
-
-      <style>{`
-        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .animate-spin { animation: spin 2s linear infinite; }
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-track { background: #050705; }
-        ::-webkit-scrollbar-thumb { background: #10b98122; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #10b98144; }
-      `}</style>
+    <!-- Background Decoration -->
+    <div class="fixed top-0 left-1/2 -translate-x-1/2 w-full h-full -z-10 overflow-hidden pointer-events-none">
+        <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-green-900/20 blur-[120px] rounded-full"></div>
+        <div class="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-green-800/10 blur-[100px] rounded-full"></div>
     </div>
-  );
-}
 
-// --- SUB-COMPONENTS ---
-
-function ModernStatusRow({ name, version, status, icon: Icon, delay }) {
-  return (
-    <div className={`group p-6 rounded-3xl border transition-all duration-500 bg-white/[0.02] border-white/5 hover:border-emerald-500/20 ${!status && 'opacity-40 grayscale'}`}>
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="flex items-center gap-6">
-          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all ${status ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
-            {Icon && <Icon size={24} />}
-          </div>
-          <div>
-            <h4 className="font-black text-xl text-white uppercase italic tracking-tighter">{name}</h4>
-            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{version} // Latency: {delay}</span>
-          </div>
+    <!-- Navigation -->
+    <nav class="sticky top-0 z-40 w-full backdrop-blur-md border-b border-white/5">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(34,197,94,0.4)]">
+                    <i class="fas fa-seedling text-white text-sm"></i>
+                </div>
+                <span class="text-xl font-extrabold tracking-tight">Bean<span class="text-green-500">Hub</span></span>
+            </div>
+            <div class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
+                <a href="#" class="hover:text-green-400 transition-colors">Home</a>
+                <a href="#executors" class="hover:text-green-400 transition-colors">Executors</a>
+                <a href="#" class="bg-green-500/10 text-green-400 px-4 py-2 rounded-full border border-green-500/20 hover:bg-green-500 hover:text-white transition-all">Join Discord</a>
+            </div>
         </div>
-        <div className="flex items-center gap-3">
-            <div className={`w-2 h-2 rounded-full ${status ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
-            <span className={`text-[11px] font-black uppercase tracking-widest ${status ? 'text-emerald-500' : 'text-red-500'}`}>
-                {status ? 'Online' : 'Maintenance'}
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="max-w-4xl mx-auto pt-24 px-6 text-center">
+        <div class="inline-flex items-center gap-2 bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-bold px-3 py-1 rounded-full mb-6 uppercase tracking-widest">
+            <span class="relative flex h-2 w-2">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
             </span>
+            Status: Undetected
         </div>
-      </div>
-    </div>
-  );
-}
+        <h1 class="text-5xl md:text-7xl font-extrabold mb-6 tracking-tight leading-tight">
+            Elevate Gameplay with <br><span class="text-green-500">Bean Hub</span>
+        </h1>
+        <p class="text-slate-400 text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
+            The most sophisticated and lightweight script collection. 
+            Optimized for performance and built for power users.
+        </p>
+    </header>
 
-function CoreSystemCard({ icon: Icon, title, desc }) {
-  return (
-    <div className="group p-8 rounded-[32px] bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] transition-all relative overflow-hidden">
-      <div className="absolute -bottom-8 -right-8 text-white/[0.02] group-hover:text-emerald-500/[0.05] transition-colors">
-        {Icon && <Icon size={120} strokeWidth={1} />}
-      </div>
-      <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-500 mb-8 group-hover:scale-110 transition-transform">
-        {Icon && <Icon size={28} />}
-      </div>
-      <h4 className="text-2xl font-black text-white mb-4 uppercase italic tracking-tighter">{title}</h4>
-      <p className="text-slate-500 text-sm font-medium leading-relaxed relative z-10">{desc}</p>
-    </div>
-  );
-}
+    <!-- Script Content -->
+    <main class="max-w-4xl mx-auto px-6 pb-32">
+        <div class="glass-card rounded-3xl overflow-hidden bean-glow">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center p-5 bg-white/5 border-b border-white/5 gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="flex gap-1.5">
+                        <div class="w-3 h-3 rounded-full bg-red-500/50"></div>
+                        <div class="w-3 h-3 rounded-full bg-yellow-500/50"></div>
+                        <div class="w-3 h-3 rounded-full bg-green-500/50"></div>
+                    </div>
+                    <span class="text-xs text-slate-500 font-mono ml-2 uppercase tracking-tighter">main_loader.lua</span>
+                </div>
+                <button onclick="copyScript()" class="w-full sm:w-auto flex items-center justify-center gap-2 bg-green-500 hover:bg-green-400 text-black px-6 py-2.5 rounded-xl text-sm font-bold transition-all transform active:scale-95 shadow-[0_0_20px_rgba(34,197,94,0.2)]">
+                    <i class="far fa-copy text-lg"></i> Copy Code
+                </button>
+            </div>
+            <div class="p-0 relative">
+                <pre class="p-8 text-sm font-mono overflow-x-auto bg-[#0a0f14] leading-loose"><code id="script-code" class="text-green-50/90">loadstring(game:HttpGet("https://raw.githubusercontent.com/BeanHub/Main/main/Loader.lua"))()</code></pre>
+            </div>
+        </div>
 
-function FooterColumn({ title, links }) {
-  return (
-    <div>
-      <h5 className="text-[11px] font-black text-white uppercase tracking-widest mb-6">{title}</h5>
-      <ul className="space-y-4">
-        {links.map(link => (
-          <li key={link}><a href="#" className="text-xs text-slate-600 hover:text-emerald-500 transition-colors uppercase font-bold tracking-tighter italic">{link}</a></li>
-        ))}
-      </ul>
+        <!-- Executor Support -->
+        <section id="executors" class="mt-24">
+            <div class="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
+                <div>
+                    <h2 class="text-3xl font-bold mb-2 tracking-tight">Support Matrix</h2>
+                    <p class="text-slate-500 text-sm">Real-time compatibility status for major executors.</p>
+                </div>
+                <div class="flex gap-4 text-xs">
+                    <span class="flex items-center gap-1.5 text-slate-400"><span class="w-2 h-2 rounded-full bg-green-500"></span> Working</span>
+                    <span class="flex items-center gap-1.5 text-slate-400"><span class="w-2 h-2 rounded-full bg-yellow-500"></span> Testing</span>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                
+                <!-- Executor Cards -->
+                <div class="glass-card p-6 rounded-2xl flex flex-col gap-4 hover:border-green-500/40 transition-all group">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="font-bold text-lg group-hover:text-green-400 transition-colors">Wave</h3>
+                            <p class="text-xs text-slate-500 mt-1">Windows (External)</p>
+                        </div>
+                        <span class="status-badge status-working">Working</span>
+                    </div>
+                </div>
+
+                <div class="glass-card p-6 rounded-2xl flex flex-col gap-4 hover:border-green-500/40 transition-all group">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="font-bold text-lg group-hover:text-green-400 transition-colors">Solara</h3>
+                            <p class="text-xs text-slate-500 mt-1">Windows (Internal)</p>
+                        </div>
+                        <span class="status-badge status-working">Working</span>
+                    </div>
+                </div>
+
+                <div class="glass-card p-6 rounded-2xl flex flex-col gap-4 hover:border-green-500/40 transition-all group">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="font-bold text-lg group-hover:text-green-400 transition-colors">Delta</h3>
+                            <p class="text-xs text-slate-500 mt-1">Mobile / Emulator</p>
+                        </div>
+                        <span class="status-badge status-risky">Risky</span>
+                    </div>
+                </div>
+
+                <div class="glass-card p-6 rounded-2xl flex flex-col gap-4 hover:border-green-500/40 transition-all group">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="font-bold text-lg group-hover:text-green-400 transition-colors">Synapse Z</h3>
+                            <p class="text-xs text-slate-500 mt-1">Windows</p>
+                        </div>
+                        <span class="status-badge status-working">Working</span>
+                    </div>
+                </div>
+
+                <div class="glass-card p-6 rounded-2xl flex flex-col gap-4 hover:border-green-500/40 transition-all group">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="font-bold text-lg group-hover:text-green-400 transition-colors">Hydrogen</h3>
+                            <p class="text-xs text-slate-500 mt-1">Android / macOS</p>
+                        </div>
+                        <span class="status-badge status-patched">Patched</span>
+                    </div>
+                </div>
+
+                <div class="glass-card p-6 rounded-2xl flex flex-col gap-4 hover:border-green-500/40 transition-all group">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="font-bold text-lg group-hover:text-green-400 transition-colors">Codex</h3>
+                            <p class="text-xs text-slate-500 mt-1">iOS / Android</p>
+                        </div>
+                        <span class="status-badge status-working">Working</span>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+    </main>
+
+    <!-- Toast Notification -->
+    <div id="copy-notification" class="fixed bottom-10 left-1/2 p-4 bg-green-600 text-white rounded-2xl shadow-2xl z-50 flex items-center gap-3 border border-green-400/30">
+        <div class="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
+            <i class="fas fa-check text-xs"></i>
+        </div>
+        <span class="font-bold text-sm">Copied to your clipboard</span>
     </div>
-  );
-}
+
+    <script>
+        function copyScript() {
+            const code = document.getElementById('script-code').innerText;
+            const textArea = document.createElement("textarea");
+            textArea.value = code;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+
+            const notification = document.getElementById('copy-notification');
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
