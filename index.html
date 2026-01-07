@@ -1,568 +1,431 @@
-<!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bean Hub | Premium Script Suite</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
-        
-        :root {
-            --primary: #10b981;
-            --primary-glow: rgba(16, 185, 129, 0.4);
-            --bg-dark: #020402;
+import React, { useState, useEffect, useCallback } from 'react';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
+import { getFirestore, doc, setDoc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { 
+  Terminal, 
+  Settings, 
+  Copy, 
+  Check, 
+  Lock, 
+  Globe,
+  Disc,
+  Zap,
+  Waves,
+  ShieldCheck,
+  ZapOff,
+  Users,
+  Layers,
+  Activity,
+  ChevronRight,
+  Monitor
+} from 'lucide-react';
+
+// --- FIREBASE CONFIGURATION ---
+const firebaseConfig = JSON.parse(__firebase_config);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'beanhub-prod';
+
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
+  const [password, setPassword] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [activeUsers, setActiveUsers] = useState(1420);
+  const [isBooting, setIsBooting] = useState(true);
+  
+  // Local state synced with Firestore
+  const [status, setStatus] = useState({
+    wave: true,
+    delta: true,
+    fluxus: false,
+    updateMsg: "System Optimal",
+    lastUpdated: Date.now()
+  });
+
+  // Simulated live user fluctuation
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveUsers(prev => prev + Math.floor(Math.random() * 7) - 3);
+    }, 3000);
+    // Initial boot delay for polish
+    const timer = setTimeout(() => setIsBooting(false), 800);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timer);
+    };
+  }, []);
+
+  // (1) Auth Setup - MANDATORY RULE 3
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
         }
+      } catch (err) {
+        console.error("Auth failed:", err);
+      }
+    };
+    initAuth();
+    const unsubscribe = onAuthStateChanged(auth, (u) => setUser(u));
+    return () => unsubscribe();
+  }, []);
 
-        body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            background-color: var(--bg-dark);
-            color: #f8fafc;
-            overflow-x: hidden;
-        }
+  // (2) Sync Data - MANDATORY RULE 1
+  useEffect(() => {
+    if (!user) return;
+    
+    const statusDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'system', 'status');
+    
+    const unsubscribe = onSnapshot(statusDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setStatus(docSnap.data());
+      } else {
+        // Init if doesn't exist
+        setDoc(statusDocRef, {
+          wave: true,
+          delta: true,
+          fluxus: false,
+          updateMsg: "Initial Boot Success",
+          lastUpdated: Date.now()
+        });
+      }
+    }, (err) => console.error("Firestore Sync Error:", err));
 
-        .gradient-text {
-            background: linear-gradient(135deg, #34d399 0%, #10b981 50%, #059669 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
+    return () => unsubscribe();
+  }, [user]);
 
-        .glass-card {
-            background: rgba(255, 255, 255, 0.015);
-            backdrop-filter: blur(24px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 32px;
-            transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
-            position: relative;
-            overflow: hidden;
-        }
+  // Actions
+  const updateGlobalStatus = async (newStatusUpdate) => {
+    if (!isAdmin || !user) return;
+    const statusDocRef = doc(db, 'artifacts', appId, 'public', 'data', 'system', 'status');
+    try {
+      await updateDoc(statusDocRef, { 
+        ...newStatusUpdate,
+        lastUpdated: Date.now()
+      });
+    } catch (err) {
+      console.error("Update failed:", err);
+    }
+  };
 
-        .glass-card::before {
-            content: '';
-            position: absolute;
-            top: 0; left: -100%;
-            width: 100%; height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.05), transparent);
-            transition: 0.5s;
-        }
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (password === '@lesam625') { 
+      setIsAdmin(true);
+      setShowLogin(false);
+      setPassword('');
+    } else {
+      setPassword('');
+      // Trigger a small shake or feedback here if desired
+    }
+  };
 
-        .glass-card:hover::before {
-            left: 100%;
-        }
+  const copyToClipboard = useCallback(() => {
+    const code = `loadstring(game:HttpGet("https://raw.githubusercontent.com/BeanHub/Main/main/loader.lua"))()`;
+    
+    // Fallback for document.execCommand in iframe environments
+    const textArea = document.createElement("textarea");
+    textArea.value = code;
+    textArea.style.position = "fixed";
+    textArea.style.left = "-9999px";
+    textArea.style.top = "0";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+      const successful = document.execCommand('copy');
+      if (successful) {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch (err) {
+      console.error("Copy failed", err);
+    }
+    document.body.removeChild(textArea);
+  }, []);
 
-        .glass-card:hover {
-            border-color: rgba(16, 185, 129, 0.3);
-            background: rgba(255, 255, 255, 0.03);
-            transform: translateY(-8px);
-            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.7), 0 0 20px rgba(16, 185, 129, 0.1);
-        }
+  // Derived State
+  const securityScore = (status.wave ? 45 : 0) + (status.delta ? 45 : 0) + (status.fluxus ? 8.4 : 2);
 
-        .executor-status {
-            padding: 6px 14px;
-            border-radius: 99px;
-            font-size: 0.7rem;
-            font-weight: 800;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .status-online { background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); }
-        .status-offline { background: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
-
-        .code-block {
-            font-family: 'JetBrains Mono', monospace;
-            background: #050705;
-            border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .copy-popup {
-            position: fixed;
-            bottom: 40px;
-            right: 40px;
-            background: #10b981;
-            color: black;
-            padding: 20px 32px;
-            border-radius: 24px;
-            transform: translateY(200%);
-            transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-            z-index: 9999;
-            box-shadow: 0 25px 50px -12px rgba(16, 185, 129, 0.4);
-            font-weight: 800;
-        }
-        .copy-popup.show { transform: translateY(0); }
-
-        .blob-glow {
-            position: absolute;
-            width: 60vw;
-            height: 60vw;
-            background: radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, transparent 70%);
-            z-index: -1;
-            pointer-events: none;
-            filter: blur(120px);
-        }
-
-        @keyframes pulse-soft {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.7; }
-        }
-        .pulse { animation: pulse-soft 2s infinite ease-in-out; }
-
-        input[type="range"] {
-            -webkit-appearance: none;
-            background: rgba(255, 255, 255, 0.1);
-            height: 4px;
-            border-radius: 5px;
-        }
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 18px; width: 18px;
-            border-radius: 50%;
-            background: #10b981;
-            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
-            cursor: pointer;
-        }
-    </style>
-</head>
-<body>
-
-    <div class="blob-glow top-[-20vw] left-[-20vw]"></div>
-    <div class="blob-glow bottom-[-20vw] right-[-20vw] opacity-40"></div>
-
-    <!-- Navigation -->
-    <header class="fixed top-0 w-full z-[100] px-6 py-6 transition-all duration-300" id="navbar">
-        <nav class="max-w-7xl mx-auto flex items-center justify-between glass-card !rounded-2xl px-8 py-4 !bg-black/20">
-            <div class="text-2xl font-800 tracking-tighter flex items-center gap-3">
-                <div class="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-black">
-                    <i class="fas fa-terminal"></i>
-                </div>
-                <span class="font-bold tracking-tight uppercase">Bean<span class="text-emerald-500">Hub</span></span>
-            </div>
-            
-            <div class="hidden md:flex items-center gap-8 text-xs font-black uppercase tracking-widest text-gray-400">
-                <a href="#status" class="hover:text-emerald-400 transition-colors">Status</a>
-                <a href="#script" class="hover:text-emerald-400 transition-colors">Generator</a>
-                <a href="#faq" class="hover:text-emerald-400 transition-colors">Support</a>
-            </div>
-
-            <div class="flex items-center gap-4">
-                <a href="https://discord.gg/" class="p-2 text-gray-400 hover:text-white transition-colors"><i class="fab fa-discord text-xl"></i></a>
-                <button onclick="document.getElementById('script').scrollIntoView()" class="bg-white text-black px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-emerald-500 transition-all">Get Started</button>
-            </div>
-        </nav>
-    </header>
-
-    <!-- Hero -->
-    <section class="min-h-screen flex flex-col justify-center items-center text-center px-6 pt-20">
-        <div class="inline-flex items-center gap-3 px-6 py-2.5 mb-8 text-[11px] font-black tracking-[0.3em] text-emerald-400 uppercase bg-emerald-400/5 rounded-full border border-emerald-400/10">
-            <span class="w-2 h-2 bg-emerald-500 rounded-full pulse"></span>
-            Version 4.0 Stable
+  if (isBooting) {
+    return (
+      <div className="min-h-screen bg-[#020402] flex items-center justify-center font-mono text-emerald-500">
+        <div className="space-y-2">
+          <p className="animate-pulse">_ BOOTING BEANHUB_OS...</p>
+          <p className="text-[10px] opacity-50 uppercase tracking-widest">Establishing encrypted tunnel</p>
         </div>
-        <h1 class="text-7xl md:text-9xl font-800 mb-8 tracking-tighter leading-none max-w-5xl">
-            Next Gen <span class="gradient-text">Execution</span>.
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#020402] text-slate-200 font-sans selection:bg-emerald-500/30 overflow-x-hidden">
+      {/* Background Pattern */}
+      <div className="fixed inset-0 pointer-events-none opacity-20" 
+           style={{backgroundImage: `radial-gradient(#10b981 0.5px, transparent 0.5px)`, backgroundSize: '24px 24px'}}></div>
+      
+      {/* Navbar */}
+      <nav className="fixed top-0 w-full z-[60] px-4 py-4 md:px-6 md:py-6">
+        <div className="max-w-7xl mx-auto flex items-center justify-between bg-black/40 backdrop-blur-xl border border-white/5 rounded-2xl px-4 md:px-8 py-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-black shadow-lg shadow-emerald-500/20">
+              <Terminal size={20} />
+            </div>
+            <span className="font-black text-xl tracking-tighter uppercase">Bean<span className="text-emerald-500">Hub</span></span>
+          </div>
+          <div className="hidden lg:flex gap-8 text-[10px] font-black uppercase tracking-widest text-slate-500">
+            <a href="#status" className="hover:text-emerald-400 transition-colors">Network</a>
+            <a href="#features" className="hover:text-emerald-400 transition-colors">Core</a>
+            <a href="#script" className="hover:text-emerald-400 transition-colors">Script</a>
+            <button onClick={() => setShowLogin(true)} className="hover:text-emerald-400 transition-colors flex items-center gap-2">
+              <Lock size={12} /> {isAdmin ? 'Root: Active' : 'Dev Login'}
+            </button>
+          </div>
+          <div className="flex items-center gap-4">
+             <div className="hidden sm:flex flex-col items-end leading-none">
+                <span className="text-[10px] font-black text-emerald-500">{activeUsers.toLocaleString()}</span>
+                <span className="text-[8px] font-bold text-slate-600 uppercase tracking-tighter">Live Sessions</span>
+             </div>
+             <a href="https://discord.gg/beanhub" target="_blank" rel="noreferrer" className="bg-emerald-500 text-black px-6 py-2 rounded-lg text-xs font-black uppercase tracking-wider hover:bg-emerald-400 transition-all">Discord</a>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero */}
+      <section className="pt-48 md:pt-56 pb-20 md:pb-32 px-6 text-center relative overflow-hidden">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1200px] h-[600px] bg-emerald-500/5 blur-[140px] -z-10 rounded-full" />
+        <div className="inline-flex items-center gap-2 px-4 py-2 mb-8 text-[10px] font-black tracking-widest text-emerald-400 bg-emerald-400/5 rounded-full border border-emerald-400/10">
+          <Activity size={12} className="animate-pulse" />
+          V4.0 CLOUD ARCHITECTURE
+        </div>
+        <h1 className="text-5xl md:text-9xl font-black tracking-tighter mb-8 leading-[0.85]">
+          The Industry <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-emerald-500 to-emerald-800">Standard.</span>
         </h1>
-        <p class="text-gray-400 text-lg md:text-xl mb-12 max-w-xl mx-auto font-medium leading-relaxed opacity-80">
-            Engineered for performance. Optimized for bypasses. The only script you'll ever need.
+        <p className="max-w-xl mx-auto text-slate-400 text-base md:text-lg mb-12 font-medium">
+          Premium infrastructure providing instant script execution and unmatched stability across all platforms.
         </p>
-        <div class="flex flex-col sm:flex-row gap-6">
-            <button onclick="document.getElementById('script').scrollIntoView()" class="px-12 py-5 bg-emerald-500 text-black font-900 rounded-2xl transition-all shadow-[0_0_50px_rgba(16,185,129,0.2)] hover:scale-105 active:scale-95 text-lg">
-                View Script
-            </button>
-            <button onclick="document.getElementById('status').scrollIntoView()" class="px-12 py-5 bg-white/5 border border-white/10 text-white font-700 rounded-2xl transition-all hover:bg-white/10 active:scale-95 text-lg">
-                Check Health
-            </button>
+        <div className="flex flex-col sm:flex-row justify-center gap-4">
+          <button 
+            onClick={() => document.getElementById('script')?.scrollIntoView({ behavior: 'smooth' })} 
+            className="bg-emerald-500 text-black px-12 py-5 rounded-2xl font-black text-xl shadow-xl shadow-emerald-500/30 hover:scale-[1.02] hover:bg-emerald-400 active:scale-95 transition-all"
+          >
+            Launch Loader
+          </button>
+          <button 
+            onClick={() => document.getElementById('status')?.scrollIntoView({ behavior: 'smooth' })}
+            className="bg-white/5 border border-white/10 px-12 py-5 rounded-2xl font-black text-xl hover:bg-white/10 transition-all"
+          >
+            Check Status
+          </button>
         </div>
-    </section>
+      </section>
 
-    <!-- Status Dashboard -->
-    <section id="status" class="max-w-7xl mx-auto px-6 py-32">
-        <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
-            <div class="lg:col-span-1">
-                <div class="glass-card p-8 sticky top-32">
-                    <div class="flex items-center gap-3 mb-8">
-                        <div class="w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center text-emerald-500">
-                            <i class="fas fa-shield-alt"></i>
-                        </div>
-                        <h3 class="text-xl font-bold">Admin Panel</h3>
-                    </div>
-                    
-                    <div class="space-y-5">
-                        <div class="p-4 bg-white/5 rounded-2xl border border-white/5">
-                            <label class="text-[10px] font-black uppercase text-gray-500 tracking-widest block mb-4">Toggle Statuses</label>
-                            <div class="space-y-4">
-                                <label class="flex items-center justify-between cursor-pointer group">
-                                    <span class="text-sm font-bold text-gray-300 group-hover:text-white transition-colors">Wave v2</span>
-                                    <input type="checkbox" checked onchange="toggleStatus('wave', this.checked)" class="sr-only peer">
-                                    <div class="w-10 h-5 bg-white/10 rounded-full peer peer-checked:bg-emerald-500 relative transition-all after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-5"></div>
-                                </label>
-                                <label class="flex items-center justify-between cursor-pointer group">
-                                    <span class="text-sm font-bold text-gray-300 group-hover:text-white transition-colors">Delta</span>
-                                    <input type="checkbox" checked onchange="toggleStatus('delta', this.checked)" class="sr-only peer">
-                                    <div class="w-10 h-5 bg-white/10 rounded-full peer peer-checked:bg-emerald-500 relative transition-all after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:after:translate-x-5"></div>
-                                </label>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="text-[10px] font-black uppercase text-gray-500 tracking-widest block mb-2">Live Message</label>
-                            <input type="text" placeholder="e.g. Bypassed Byfron" oninput="updateTimestamp(this.value)" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-emerald-500 transition-colors">
-                        </div>
-                    </div>
+      {/* Stats Section */}
+      <section id="status" className="max-w-7xl mx-auto px-6 py-20 border-y border-white/[0.03]">
+        <div className="grid lg:grid-cols-4 gap-8">
+          {/* Admin Panel */}
+          <div className={`lg:col-span-1 transition-all duration-500 ${isAdmin ? 'opacity-100' : 'opacity-20 grayscale pointer-events-none hidden lg:block'}`}>
+            <div className="bg-white/5 border border-white/10 rounded-[32px] p-8 sticky top-32 backdrop-blur-sm">
+              <div className="flex items-center gap-3 mb-8">
+                <Settings className="text-emerald-500 animate-spin-slow" size={20} />
+                <h3 className="font-bold uppercase tracking-tight">Root Controls</h3>
+              </div>
+              <div className="space-y-6">
+                {['wave', 'delta', 'fluxus'].map(key => (
+                  <div key={key} className="flex items-center justify-between group">
+                    <span className="text-sm font-bold capitalize group-hover:text-emerald-400 transition-colors">{key}</span>
+                    <button 
+                      onClick={() => updateGlobalStatus({ [key]: !status[key] })}
+                      className={`w-12 h-6 rounded-full transition-all relative ${status[key] ? 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-white/10'}`}
+                    >
+                      <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${status[key] ? 'left-7' : 'left-1'}`} />
+                    </button>
+                  </div>
+                ))}
+                <div className="pt-6 border-t border-white/5">
+                  <label className="text-[10px] font-black text-slate-500 uppercase block mb-2">Global Broadcast</label>
+                  <input 
+                    type="text" 
+                    value={status.updateMsg}
+                    onChange={(e) => updateGlobalStatus({ updateMsg: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+                  />
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="lg:col-span-3 grid md:grid-cols-3 gap-6">
+            <div className="md:col-span-3 flex flex-col md:flex-row md:items-center justify-between gap-4 px-2 mb-2">
+              <h2 className="text-4xl font-black tracking-tight uppercase italic">Network <span className="text-emerald-500">Relay</span></h2>
+              <div className="flex items-center gap-4 bg-emerald-500/5 px-6 py-3 rounded-2xl border border-emerald-500/10">
+                <div className="flex flex-col">
+                  <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Live Pulse</span>
+                  <span className="text-xs font-bold text-emerald-400">{status.updateMsg}</span>
+                </div>
+              </div>
             </div>
 
-            <div class="lg:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="md:col-span-2 flex items-center justify-between px-4">
-                    <h2 class="text-3xl font-800">Operational <span class="text-emerald-500">Status</span></h2>
-                    <span id="live-timestamp" class="text-[10px] font-black uppercase tracking-widest text-gray-500 bg-white/5 px-4 py-2 rounded-full border border-white/5">Last Sync: Real-time</span>
-                </div>
-
-                <div class="glass-card p-10 flex flex-col justify-between group" id="card-wave">
-                    <div class="flex justify-between items-start">
-                        <div class="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center text-emerald-500 text-2xl group-hover:scale-110 transition-transform">
-                            <i class="fas fa-water"></i>
-                        </div>
-                        <span id="status-wave" class="executor-status status-online">Operational</span>
-                    </div>
-                    <div class="mt-12">
-                        <h4 class="text-2xl font-bold mb-2">Wave Executor</h4>
-                        <p class="text-sm text-gray-500 leading-relaxed">External execution optimized for performance and low detection rates.</p>
-                    </div>
-                </div>
-
-                <div class="glass-card p-10 flex flex-col justify-between group" id="card-delta">
-                    <div class="flex justify-between items-start">
-                        <div class="w-14 h-14 bg-white/5 rounded-2xl flex items-center justify-center text-emerald-500 text-2xl font-black group-hover:scale-110 transition-transform">
-                            Δ
-                        </div>
-                        <span id="status-delta" class="executor-status status-online">Operational</span>
-                    </div>
-                    <div class="mt-12">
-                        <h4 class="text-2xl font-bold mb-2">Delta Mobile</h4>
-                        <p class="text-sm text-gray-500 leading-relaxed">Mobile execution with full script support and high compatibility.</p>
-                    </div>
-                </div>
-
-                <div class="glass-card p-8 md:col-span-2 bg-emerald-500/5 border-emerald-500/20">
-                    <div class="flex flex-col md:flex-row items-center justify-between gap-8">
-                        <div class="text-center md:text-left">
-                            <div class="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em] mb-2">Global Network</div>
-                            <div class="text-4xl font-900" id="global-msg">OPTIMAL</div>
-                        </div>
-                        <div class="flex gap-4">
-                            <div class="text-center px-8 py-4 bg-white/5 rounded-2xl border border-white/5">
-                                <div class="text-2xl font-black text-white">99.9%</div>
-                                <div class="text-[9px] uppercase font-bold text-gray-500">Uptime</div>
-                            </div>
-                            <div class="text-center px-8 py-4 bg-white/5 rounded-2xl border border-white/5">
-                                <div class="text-2xl font-black text-white">0</div>
-                                <div class="text-[9px] uppercase font-bold text-gray-500">Reports</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <StatusCard title="Wave 2.1" active={status.wave} Icon={Waves} desc="Next-gen detection bypass for PC." />
+            <StatusCard title="Delta Mobile" active={status.delta} Icon={Disc} desc="Standard Android framework support." />
+            <StatusCard title="Fluxus Cloud" active={status.fluxus} Icon={Zap} desc="Legacy relay / Maintenance." />
+            
+            <div className="md:col-span-3 bg-gradient-to-br from-emerald-500/[0.07] to-transparent border border-emerald-500/20 rounded-[32px] p-10 flex flex-col md:flex-row items-center justify-between gap-8">
+               <div className="text-center md:text-left">
+                  <div className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1">Stability Index</div>
+                  <div className="text-5xl font-black italic">{securityScore.toFixed(1)}%</div>
+                  <div className="text-xs text-slate-500 font-bold mt-2 uppercase tracking-tight italic">Global infrastructure health report.</div>
+               </div>
+               <div className="flex gap-4 items-end h-16">
+                  <div className={`w-1.5 h-6 rounded-full ${securityScore > 20 ? 'bg-emerald-500' : 'bg-white/10'} transition-colors`} />
+                  <div className={`w-1.5 h-10 rounded-full ${securityScore > 50 ? 'bg-emerald-500' : 'bg-white/10'} transition-colors`} />
+                  <div className={`w-1.5 h-14 rounded-full ${securityScore > 80 ? 'bg-emerald-500' : 'bg-white/10'} transition-colors`} />
+                  <div className={`w-1.5 h-16 rounded-full ${securityScore > 95 ? 'bg-emerald-500' : 'bg-white/10'} transition-colors`} />
+               </div>
             </div>
+          </div>
         </div>
-    </section>
+      </section>
 
-    <!-- Generator Section -->
-    <section id="script" class="max-w-7xl mx-auto px-6 py-32">
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            <!-- Sidebar Config -->
-            <div class="lg:col-span-4">
-                <div class="glass-card p-10 h-full">
-                    <h3 class="text-2xl font-bold mb-10 flex items-center gap-4">
-                        <i class="fas fa-microchip text-emerald-500"></i>
-                        Module Config
-                    </h3>
-                    
-                    <div class="space-y-8">
-                        <div class="space-y-4">
-                            <label class="flex items-center justify-between group cursor-pointer">
-                                <div>
-                                    <div class="text-sm font-bold group-hover:text-emerald-400 transition-colors">Anti-AFK Protection</div>
-                                    <div class="text-[10px] text-gray-500">Prevents idle disconnection</div>
-                                </div>
-                                <input type="checkbox" checked onchange="updateLoaderSnippet()" id="afk-check" class="sr-only peer">
-                                <div class="w-12 h-6 bg-white/10 rounded-full peer peer-checked:bg-emerald-500 relative after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-6"></div>
-                            </label>
-
-                            <label class="flex items-center justify-between group cursor-pointer">
-                                <div>
-                                    <div class="text-sm font-bold group-hover:text-emerald-400 transition-colors">Server Hop</div>
-                                    <div class="text-[10px] text-gray-500">Find low player servers</div>
-                                </div>
-                                <input type="checkbox" onchange="updateLoaderSnippet()" id="hop-check" class="sr-only peer">
-                                <div class="w-12 h-6 bg-white/10 rounded-full peer peer-checked:bg-emerald-500 relative after:content-[''] after:absolute after:top-1 after:left-1 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-6"></div>
-                            </label>
-                        </div>
-
-                        <div class="pt-8 border-t border-white/5 space-y-6">
-                            <div class="space-y-3">
-                                <div class="flex justify-between items-end">
-                                    <span class="text-[10px] font-black text-gray-500 uppercase tracking-widest">FPS Limit</span>
-                                    <span class="text-emerald-500 font-bold" id="fps-val">60</span>
-                                </div>
-                                <input type="range" min="30" max="240" step="30" value="60" oninput="updateLoaderSnippet()" id="fps-slider" class="w-full">
-                            </div>
-
-                            <div class="space-y-3">
-                                <div class="flex justify-between items-end">
-                                    <span class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Graphics Level</span>
-                                    <span class="text-emerald-500 font-bold" id="quality-val">Ultra</span>
-                                </div>
-                                <input type="range" min="1" max="3" value="3" oninput="updateLoaderSnippet()" id="quality-slider" class="w-full">
-                            </div>
-                        </div>
-
-                        <button onclick="updateLoaderSnippet()" class="w-full py-5 bg-emerald-500 text-black font-900 rounded-2xl hover:bg-emerald-400 transition-all shadow-[0_10px_30px_rgba(16,185,129,0.2)] active:scale-95">
-                            Apply Changes
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Code Display -->
-            <div class="lg:col-span-8">
-                <div class="glass-card h-full flex flex-col">
-                    <div class="px-8 py-6 border-b border-white/5 flex items-center justify-between bg-white/[0.01]">
-                        <div class="flex items-center gap-6">
-                            <div class="flex gap-2">
-                                <div class="w-3 h-3 rounded-full bg-red-500/50"></div>
-                                <div class="w-3 h-3 rounded-full bg-yellow-500/50"></div>
-                                <div class="w-3 h-3 rounded-full bg-green-500/50"></div>
-                            </div>
-                            <span class="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em]">BeanHub_v4_Loader.lua</span>
-                        </div>
-                        <button onclick="copyScript()" id="copy-btn" class="flex items-center gap-3 bg-white text-black px-8 py-3 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-emerald-500 transition-all group">
-                            <i class="far fa-copy group-hover:rotate-12 transition-transform"></i> Copy
-                        </button>
-                    </div>
-                    <div class="p-8 flex-grow">
-                        <div class="code-block p-8 h-full relative group">
-                            <pre id="script-content" class="text-emerald-400/90 text-sm md:text-base leading-relaxed overflow-x-auto whitespace-pre">_G.BeanHub_Settings = {
-    AntiAFK = true,
-    ServerHop = false,
-    FPS_Cap = 60,
-    Quality = "Ultra"
-}
-
--- Built for reliability
-loadstring(game:HttpGet("https://raw.githubusercontent.com/BeanHub/Main/main/loader.lua"))()</pre>
-                            <div class="absolute bottom-4 right-4 text-[10px] font-mono text-white/10 uppercase font-black tracking-widest pointer-events-none">SHA256: 4F2A...E891</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+      {/* Features Section */}
+      <section id="features" className="max-w-7xl mx-auto px-6 py-32">
+        <div className="text-center mb-20">
+          <h2 className="text-4xl font-black mb-4 tracking-tighter uppercase italic">System <span className="text-emerald-500">Core</span></h2>
+          <p className="text-slate-500 max-w-lg mx-auto font-medium uppercase text-[10px] tracking-[0.3em]">Engineering excellence for the modern exploiter.</p>
         </div>
-    </section>
+        <div className="grid md:grid-cols-3 gap-8 md:gap-12">
+          <FeatureCard Icon={ShieldCheck} title="Kernel Guard" desc="Advanced obfuscation that mimics legitimate game traffic to evade modern AC systems." />
+          <FeatureCard Icon={Layers} title="Cross-Platform" desc="Universal loader logic that detects your environment and optimizes for CPU/GPU." />
+          <FeatureCard Icon={Users} title="Rapid Response" desc="24/7 devops monitoring ensuring script patches are pushed within minutes of updates." />
+        </div>
+      </section>
 
-    <!-- Support Section -->
-    <section id="faq" class="max-w-4xl mx-auto px-6 py-32">
-        <div class="text-center mb-16">
-            <h2 class="text-4xl font-800 mb-4">Knowledge <span class="text-emerald-500">Base</span></h2>
-            <p class="text-gray-500 font-medium">Everything you need to know about getting started.</p>
-        </div>
-        <div class="grid gap-4">
-            <details class="glass-card group" open>
-                <summary class="list-none p-8 font-bold text-xl cursor-pointer flex justify-between items-center group-hover:text-emerald-400 transition-colors">
-                    Is Bean Hub free to use?
-                    <i class="fas fa-chevron-down text-sm transition-transform group-open:rotate-180"></i>
-                </summary>
-                <div class="px-8 pb-8 text-gray-400 leading-relaxed">
-                    Yes, Bean Hub remains 100% free. We sustain development through our community support and discord growth. No keys are required for the standard suite.
+      {/* Script Section */}
+      <section id="script" className="max-w-5xl mx-auto px-6 py-20">
+        <div className="relative group">
+          <div className="absolute -inset-1 bg-gradient-to-r from-emerald-500 to-emerald-900 rounded-[42px] blur-xl opacity-20 group-hover:opacity-30 transition duration-1000"></div>
+          <div className="relative bg-[#050705] border border-white/5 rounded-[40px] overflow-hidden shadow-2xl">
+            <div className="px-6 md:px-10 py-8 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white/[0.01]">
+              <div className="flex items-center gap-3">
+                <div className="flex gap-1.5 mr-4">
+                  <div className="w-2.5 h-2.5 bg-red-500/40 rounded-full" />
+                  <div className="w-2.5 h-2.5 bg-yellow-500/40 rounded-full" />
+                  <div className="w-2.5 h-2.5 bg-green-500/40 rounded-full" />
                 </div>
-            </details>
-            <details class="glass-card group">
-                <summary class="list-none p-8 font-bold text-xl cursor-pointer flex justify-between items-center group-hover:text-emerald-400 transition-colors">
-                    What games are supported?
-                    <i class="fas fa-chevron-down text-sm transition-transform group-open:rotate-180"></i>
-                </summary>
-                <div class="px-8 pb-8 text-gray-400 leading-relaxed">
-                    We support over 200+ popular Roblox titles including Blox Fruits, Pet Simulator 99, Bedwars, and many more. Our universal module works on almost any game.
-                </div>
-            </details>
-        </div>
-    </section>
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Main_loader.lua</span>
+              </div>
+              <button 
+                onClick={copyToClipboard}
+                className="bg-emerald-500 text-black px-8 py-3 rounded-2xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-emerald-400 transition-all active:scale-95 shadow-lg shadow-emerald-500/20"
+              >
+                {copied ? <Check size={14} className="animate-bounce" /> : <Copy size={14} />}
+                {copied ? 'Success' : 'Copy Script'}
+              </button>
+            </div>
+            <div className="p-8 md:p-12 font-mono text-xs md:text-sm leading-loose text-emerald-400/90 overflow-x-auto custom-scrollbar">
+              <pre className="selection:bg-emerald-500/40 whitespace-pre-wrap md:whitespace-pre">
+{`-- [[ BEANHUB UNIVERSAL ]] --
+-- Auto-detection enabled...
+-- Syncing cloud variables...
 
-    <!-- Footer -->
-    <footer class="py-20 px-6 border-t border-white/5 mt-20 bg-black/40">
-        <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
-            <div class="lg:col-span-2">
-                <div class="text-2xl font-800 tracking-tighter flex items-center gap-3 mb-6">
-                    <div class="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-black text-sm">
-                        <i class="fas fa-terminal"></i>
-                    </div>
-                    <span class="font-bold tracking-tight uppercase">Bean<span class="text-emerald-500">Hub</span></span>
-                </div>
-                <p class="text-gray-500 max-w-sm mb-8">Redefining the scripting experience with premium features and unparalleled stability since 2024.</p>
-                <div class="flex gap-4">
-                    <a href="#" class="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center hover:bg-emerald-500 hover:text-black transition-all"><i class="fab fa-discord"></i></a>
-                    <a href="#" class="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center hover:bg-emerald-500 hover:text-black transition-all"><i class="fab fa-github"></i></a>
-                    <a href="#" class="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center hover:bg-emerald-500 hover:text-black transition-all"><i class="fab fa-youtube"></i></a>
-                </div>
+loadstring(game:HttpGet("https://raw.githubusercontent.com/BeanHub/Main/main/loader.lua"))()`}
+              </pre>
             </div>
-            <div>
-                <h4 class="text-xs font-black uppercase tracking-widest text-white mb-6">Quick Links</h4>
-                <ul class="space-y-4 text-sm text-gray-500 font-bold">
-                    <li><a href="#status" class="hover:text-emerald-400 transition-colors">Status Board</a></li>
-                    <li><a href="#script" class="hover:text-emerald-400 transition-colors">Generator</a></li>
-                    <li><a href="https://discord.gg" class="hover:text-emerald-400 transition-colors">Discord Server</a></li>
-                </ul>
-            </div>
-            <div>
-                <h4 class="text-xs font-black uppercase tracking-widest text-white mb-6">Legal</h4>
-                <ul class="space-y-4 text-sm text-gray-500 font-bold">
-                    <li><a href="#" class="hover:text-emerald-400 transition-colors">Terms of Use</a></li>
-                    <li><a href="#" class="hover:text-emerald-400 transition-colors">Privacy Policy</a></li>
-                </ul>
-            </div>
+          </div>
         </div>
-    </footer>
+      </section>
 
-    <!-- Notification -->
-    <div id="toast" class="copy-popup">
-        <div class="flex items-center gap-4">
-            <div class="w-10 h-10 bg-black/20 rounded-xl flex items-center justify-center text-xl">🚀</div>
-            <div>
-                <div class="text-[10px] uppercase font-black tracking-widest opacity-60">System</div>
-                <div>Code Copied to Clipboard</div>
-            </div>
+      {/* Login Modal */}
+      {showLogin && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/95 backdrop-blur-md transition-all duration-300">
+          <div className="bg-[#0a0a0a] border border-white/10 rounded-[40px] p-8 md:p-12 w-full max-w-md shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500"></div>
+            <button onClick={() => setShowLogin(false)} className="absolute top-8 right-8 text-slate-500 hover:text-white transition-colors">✕</button>
+            <h3 className="text-3xl font-black mb-2 flex items-center gap-3 italic">
+              <Lock className="text-emerald-500" /> ROOT ACCESS
+            </h3>
+            <p className="text-slate-500 text-[10px] mb-10 font-bold uppercase tracking-[0.2em]">Developer credentials required for sync.</p>
+            <form onSubmit={handleLogin} className="space-y-6">
+              <input 
+                type="password" 
+                placeholder="Terminal Key" 
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-5 focus:outline-none focus:border-emerald-500 transition-all font-mono placeholder:text-slate-700 text-center tracking-widest"
+                autoFocus
+              />
+              <button type="submit" className="w-full bg-emerald-500 text-black py-5 rounded-2xl font-black uppercase tracking-widest hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2">
+                Authorize <ChevronRight size={16} />
+              </button>
+            </form>
+          </div>
         </div>
+      )}
+
+      {/* Footer */}
+      <footer className="border-t border-white/5 py-32 px-6 mt-20 relative overflow-hidden">
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-emerald-500/5 blur-[120px] -z-10 rounded-full" />
+        <div className="max-w-7xl mx-auto flex flex-col items-center gap-12">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 bg-white/5 rounded-[24px] flex items-center justify-center text-emerald-500 border border-white/10 group hover:border-emerald-500/50 transition-colors">
+              <Monitor size={32} className="group-hover:scale-110 transition-transform" />
+            </div>
+            <span className="font-black text-2xl tracking-tighter text-white uppercase italic">BeanHub <span className="text-emerald-500">Relay</span></span>
+          </div>
+          <div className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-600 text-center max-w-md leading-relaxed">
+            The world's leading Roblox execution network. <br /> Developed with precision. 2026.
+          </div>
+          <div className="flex gap-10">
+            <a href="#" className="text-slate-500 hover:text-emerald-500 transition-all hover:scale-125"><Disc size={24} /></a>
+            <a href="#" className="text-slate-500 hover:text-emerald-500 transition-all hover:scale-125"><Globe size={24} /></a>
+          </div>
+        </div>
+      </footer>
+
+      <style>{`
+        .animate-spin-slow { animation: spin 8s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .custom-scrollbar::-webkit-scrollbar { height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #10b98133; border-radius: 10px; }
+      `}</style>
     </div>
-
-    <script>
-        // Navbar scroll effect
-        window.addEventListener('scroll', () => {
-            const nav = document.getElementById('navbar');
-            if (window.scrollY > 50) {
-                nav.classList.add('bg-black/60', 'backdrop-blur-xl', 'py-4');
-                nav.classList.remove('py-6');
-            } else {
-                nav.classList.remove('bg-black/60', 'backdrop-blur-xl', 'py-4');
-                nav.classList.add('py-6');
-            }
-        });
-
-        // Toggle Status
-        function toggleStatus(executor, isOnline) {
-            const statusLabel = document.getElementById(`status-${executor}`);
-            const card = document.getElementById(`card-${executor}`);
-            
-            if (isOnline) {
-                statusLabel.innerText = "Operational";
-                statusLabel.className = "executor-status status-online";
-                card.classList.remove('opacity-50', 'grayscale');
-            } else {
-                statusLabel.innerText = "Maintenance";
-                statusLabel.className = "executor-status status-offline";
-                card.classList.add('opacity-50', 'grayscale');
-            }
-            updateGlobalHealth();
-        }
-
-        function updateTimestamp(val) {
-            const display = document.getElementById('live-timestamp');
-            display.innerText = val ? `Update: ${val}` : "Last Sync: Real-time";
-        }
-
-        function updateGlobalHealth() {
-            const wave = document.getElementById('status-wave').innerText === "Operational";
-            const delta = document.getElementById('status-delta').innerText === "Operational";
-            const globalMsg = document.getElementById('global-msg');
-            
-            if (wave && delta) {
-                globalMsg.innerText = "OPTIMAL";
-                globalMsg.className = "text-4xl font-900 text-emerald-500";
-            } else if (wave || delta) {
-                globalMsg.innerText = "STABLE";
-                globalMsg.className = "text-4xl font-900 text-yellow-500";
-            } else {
-                globalMsg.innerText = "OFFLINE";
-                globalMsg.className = "text-4xl font-900 text-red-500";
-            }
-        }
-
-        // Script Generator
-        function updateLoaderSnippet() {
-            const afk = document.getElementById('afk-check').checked;
-            const hop = document.getElementById('hop-check').checked;
-            const fps = document.getElementById('fps-slider').value;
-            const qualityArr = ["Low", "Standard", "Ultra"];
-            const quality = qualityArr[document.getElementById('quality-slider').value - 1];
-            
-            document.getElementById('fps-val').innerText = fps;
-            document.getElementById('quality-val').innerText = quality;
-
-            const snippet = `_G.BeanHub_Settings = {
-    AntiAFK = ${afk},
-    ServerHop = ${hop},
-    FPS_Cap = ${fps},
-    Quality = "${quality}"
+  );
 }
 
--- Built for reliability
-loadstring(game:HttpGet("https://raw.githubusercontent.com/BeanHub/Main/main/loader.lua"))()`;
-            
-            document.getElementById('script-content').innerText = snippet;
-        }
+function StatusCard({ title, active, Icon, desc }) {
+  return (
+    <div className={`bg-white/5 border border-white/10 rounded-[32px] p-8 transition-all duration-500 group hover:bg-white/[0.08] hover:border-emerald-500/30 ${!active && 'opacity-40 grayscale blur-[0.5px]'}`}>
+      <div className="flex justify-between items-start mb-10">
+        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${active ? 'bg-emerald-500/10 text-emerald-500 group-hover:scale-110 shadow-lg shadow-emerald-500/5' : 'bg-red-500/10 text-red-500'}`}>
+          {active ? (Icon && <Icon size={28} />) : <ZapOff size={28} />}
+        </div>
+        <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all ${active ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 group-hover:bg-emerald-500 group-hover:text-black' : 'bg-red-500/10 border-red-500/30 text-red-400'}`}>
+          {active ? 'Relay Active' : 'Offline'}
+        </div>
+      </div>
+      <h4 className="font-black text-2xl mb-2 italic tracking-tight uppercase group-hover:text-emerald-400 transition-colors">{title}</h4>
+      <p className="text-[10px] text-slate-500 leading-relaxed font-bold uppercase tracking-tight">{desc}</p>
+    </div>
+  );
+}
 
-        async function copyScript() {
-            const text = document.getElementById('script-content').innerText;
-            const btn = document.getElementById('copy-btn');
-            
-            try {
-                if (navigator.clipboard) {
-                    await navigator.clipboard.writeText(text);
-                } else {
-                    const el = document.createElement('textarea');
-                    el.value = text;
-                    document.body.appendChild(el);
-                    el.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(el);
-                }
-                
-                showToast();
-                btn.innerHTML = '<i class="fas fa-check"></i> Copied';
-                setTimeout(() => {
-                    btn.innerHTML = '<i class="far fa-copy"></i> Copy';
-                }, 2000);
-            } catch (err) {
-                console.error(err);
-            }
-        }
-
-        function showToast() {
-            const toast = document.getElementById('toast');
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 3000);
-        }
-
-        // Reveal animations
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.style.opacity = "1";
-                    entry.target.style.transform = "translateY(0)";
-                }
-            });
-        }, { threshold: 0.1 });
-
-        document.querySelectorAll('.glass-card, h1, h2').forEach(el => {
-            el.style.opacity = "0";
-            el.style.transform = "translateY(30px)";
-            el.style.transition = "all 0.8s cubic-bezier(0.23, 1, 0.32, 1)";
-            observer.observe(el);
-        });
-
-        // Initialize state
-        updateGlobalHealth();
-    </script>
-</body>
-
-</html>
+function FeatureCard({ Icon, title, desc }) {
+  return (
+    <div className="bg-white/[0.03] border border-white/5 rounded-[40px] p-10 hover:bg-white/[0.06] transition-all group hover:border-emerald-500/20">
+      <div className="w-16 h-16 bg-emerald-500/10 rounded-2xl flex items-center justify-center text-emerald-500 mb-8 group-hover:scale-110 transition-transform group-hover:bg-emerald-500/20">
+        <Icon size={32} />
+      </div>
+      <h4 className="text-2xl font-black mb-4 uppercase tracking-tighter italic">{title}</h4>
+      <p className="text-slate-400 text-sm font-medium leading-relaxed">{desc}</p>
+    </div>
+  );
+}
