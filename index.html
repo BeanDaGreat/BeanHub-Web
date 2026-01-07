@@ -1,7 +1,4 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, doc, setDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { 
   Terminal, 
   Settings, 
@@ -22,9 +19,7 @@ import {
 } from 'lucide-react';
 
 // --- CENTRAL CONFIGURATION ---
-// Edit these values to update the site content easily
 const CONFIG = {
-  APP_ID: typeof __app_id !== 'undefined' ? __app_id : 'beanhub-prod',
   ADMIN_PASSWORD: '@lesam625',
   DISCORD_URL: 'https://discord.gg/beanhub',
   LOADER_SCRIPT: `loadstring(game:HttpGet("https://raw.githubusercontent.com/BeanHub/Main/main/loader.lua"))()`,
@@ -37,17 +32,9 @@ const CONFIG = {
   }
 };
 
-// --- FIREBASE INITIALIZATION ---
-const firebaseConfig = JSON.parse(__firebase_config);
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
 export default function App() {
-  // Authentication & Role State
-  const [user, setUser] = useState(null);
+  // Authentication & Role State (Local Only)
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
   
   // UI State
   const [showLogin, setShowLogin] = useState(false);
@@ -56,7 +43,7 @@ export default function App() {
   const [activeUsers, setActiveUsers] = useState(1420);
   const [isBooting, setIsBooting] = useState(true);
   
-  // Real-time Status State
+  // Real-time Status State (Local Only - No Firestore)
   const [status, setStatus] = useState(CONFIG.INITIAL_STATUS);
 
   // --- LIFECYCLE: UI EFFECTS ---
@@ -73,59 +60,14 @@ export default function App() {
     };
   }, []);
 
-  // --- LIFECYCLE: AUTHENTICATION (RULE 3) ---
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
-        }
-      } catch (err) {
-        console.error("Auth initialization failed:", err);
-      } finally {
-        setIsAuthLoading(false);
-      }
-    };
-    
-    initAuth();
-    const unsubscribe = onAuthStateChanged(auth, (u) => setUser(u));
-    return () => unsubscribe();
-  }, []);
-
-  // --- LIFECYCLE: FIRESTORE SYNC (RULE 1 & 2) ---
-  useEffect(() => {
-    if (!user || isAuthLoading) return;
-    
-    const statusDocRef = doc(db, 'artifacts', CONFIG.APP_ID, 'public', 'data', 'system', 'status');
-    
-    const unsubscribe = onSnapshot(statusDocRef, (docSnap) => {
-      if (docSnap.exists()) {
-        setStatus(docSnap.data());
-      } else {
-        // Initialize document if it doesn't exist in the specific path
-        setDoc(statusDocRef, CONFIG.INITIAL_STATUS);
-      }
-    }, (err) => {
-      console.error("Firestore sync interrupted:", err);
-    });
-
-    return () => unsubscribe();
-  }, [user, isAuthLoading]);
-
   // --- HANDLERS ---
-  const updateGlobalStatus = async (updates) => {
-    if (!isAdmin || !user) return;
-    const statusDocRef = doc(db, 'artifacts', CONFIG.APP_ID, 'public', 'data', 'system', 'status');
-    try {
-      await updateDoc(statusDocRef, { 
-        ...updates,
-        lastUpdated: Date.now()
-      });
-    } catch (err) {
-      console.error("Failed to update system status:", err);
-    }
+  const updateLocalStatus = (updates) => {
+    if (!isAdmin) return;
+    setStatus(prev => ({
+      ...prev,
+      ...updates,
+      lastUpdated: Date.now()
+    }));
   };
 
   const handleLogin = (e) => {
@@ -136,14 +78,12 @@ export default function App() {
       setPassword('');
     } else {
       setPassword('');
-      // Visual feedback for wrong password could be added here
     }
   };
 
   const copyToClipboard = useCallback(() => {
     const textArea = document.createElement("textarea");
     textArea.value = CONFIG.LOADER_SCRIPT;
-    // Ensure element is not visible but part of DOM for execCommand
     Object.assign(textArea.style, {
       position: "fixed",
       left: "-9999px",
@@ -175,9 +115,9 @@ export default function App() {
     return (
       <div className="min-h-screen bg-[#020402] flex items-center justify-center font-mono text-emerald-500">
         <div className="space-y-2 text-center">
-          <p className="animate-pulse tracking-tighter">_ INITIALIZING BEANHUB_CORE...</p>
+          <p className="animate-pulse tracking-tighter uppercase tracking-widest text-xs">_ INITIALIZING BEANHUB_CORE...</p>
           <div className="w-48 h-1 bg-white/5 rounded-full overflow-hidden mx-auto">
-            <div className="h-full bg-emerald-500 animate-[loading_1s_ease-in-out_infinite]" />
+            <div className="h-full bg-emerald-500 animate-[loading_1.5s_ease-in-out_infinite]" />
           </div>
         </div>
       </div>
@@ -222,12 +162,12 @@ export default function App() {
       {/* Hero Section */}
       <header className="pt-48 md:pt-56 pb-20 md:pb-32 px-6 text-center relative overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1200px] h-[600px] bg-emerald-500/5 blur-[140px] -z-10 rounded-full" />
-        <div className="inline-flex items-center gap-2 px-4 py-2 mb-8 text-[10px] font-black tracking-widest text-emerald-400 bg-emerald-400/5 rounded-full border border-emerald-400/10">
+        <div className="inline-flex items-center gap-2 px-4 py-2 mb-8 text-[10px] font-black tracking-widest text-emerald-400 bg-emerald-400/5 rounded-full border border-emerald-400/10 uppercase">
           <Activity size={12} className="animate-pulse" />
           V4.0 CLOUD ARCHITECTURE
         </div>
-        <h1 className="text-5xl md:text-9xl font-black tracking-tighter mb-8 leading-[0.85]">
-          The Industry <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-emerald-500 to-emerald-800 uppercase">Standard.</span>
+        <h1 className="text-5xl md:text-9xl font-black tracking-tighter mb-8 leading-[0.85] uppercase italic">
+          The Industry <br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-emerald-500 to-emerald-800">Standard.</span>
         </h1>
         <p className="max-w-xl mx-auto text-slate-400 text-base md:text-lg mb-12 font-medium">
           Premium infrastructure providing instant script execution and unmatched stability across all platforms.
@@ -264,7 +204,7 @@ export default function App() {
                   <div key={key} className="flex items-center justify-between group">
                     <span className="text-sm font-bold capitalize group-hover:text-emerald-400 transition-colors">{key}</span>
                     <button 
-                      onClick={() => updateGlobalStatus({ [key]: !status[key] })}
+                      onClick={() => updateLocalStatus({ [key]: !status[key] })}
                       className={`w-12 h-6 rounded-full transition-all relative ${status[key] ? 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.3)]' : 'bg-white/10'}`}
                     >
                       <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${status[key] ? 'left-7' : 'left-1'}`} />
@@ -276,7 +216,7 @@ export default function App() {
                   <input 
                     type="text" 
                     value={status.updateMsg}
-                    onChange={(e) => updateGlobalStatus({ updateMsg: e.target.value })}
+                    onChange={(e) => updateLocalStatus({ updateMsg: e.target.value })}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
                   />
                 </div>
@@ -341,10 +281,10 @@ export default function App() {
           <div className="relative bg-[#050705] border border-white/5 rounded-[40px] overflow-hidden shadow-2xl">
             <div className="px-6 md:px-10 py-8 border-b border-white/5 flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white/[0.01]">
               <div className="flex items-center gap-3">
-                <div className="flex gap-1.5 mr-4">
-                  <div className="w-2.5 h-2.5 bg-red-500/40 rounded-full" />
-                  <div className="w-2.5 h-2.5 bg-yellow-500/40 rounded-full" />
-                  <div className="w-2.5 h-2.5 bg-green-500/40 rounded-full" />
+                <div className="flex gap-1.5 mr-4 opacity-50">
+                  <div className="w-2.5 h-2.5 bg-red-500 rounded-full" />
+                  <div className="w-2.5 h-2.5 bg-yellow-500 rounded-full" />
+                  <div className="w-2.5 h-2.5 bg-green-500 rounded-full" />
                 </div>
                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest font-mono">Loader.lua</span>
               </div>
@@ -357,7 +297,7 @@ export default function App() {
               </button>
             </div>
             <div className="p-8 md:p-12 font-mono text-xs md:text-sm leading-loose text-emerald-400/90 overflow-x-auto custom-scrollbar">
-              <pre className="selection:bg-emerald-500/40 whitespace-pre-wrap md:whitespace-pre">
+              <pre className="selection:bg-emerald-500/40 whitespace-pre-wrap md:whitespace-pre uppercase font-bold tracking-tighter">
 {`-- [[ BEANHUB UNIVERSAL ]] --
 -- Auto-detection enabled...
 -- Syncing cloud variables...
@@ -378,7 +318,7 @@ ${CONFIG.LOADER_SCRIPT}`}
             <h3 className="text-3xl font-black mb-2 flex items-center gap-3 italic uppercase">
               <Lock className="text-emerald-500" /> Root Access
             </h3>
-            <p className="text-slate-500 text-[10px] mb-10 font-bold uppercase tracking-[0.2em]">Developer credentials required for sync.</p>
+            <p className="text-slate-500 text-[10px] mb-10 font-bold uppercase tracking-[0.2em]">Developer credentials required for local session.</p>
             <form onSubmit={handleLogin} className="space-y-6">
               <input 
                 type="password" 
