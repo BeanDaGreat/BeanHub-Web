@@ -3,219 +3,391 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bean Hub | Roblox Script</title>
+    <title>Bean Hub | Premium Universal Script Hub</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         
+        :root {
+            --primary: #22c55e;
+            --primary-glow: rgba(34, 197, 94, 0.4);
+            --bg-dark: #04070a;
+            --card-bg: rgba(13, 20, 30, 0.7);
+        }
+
         body {
-            background-color: #060a0f;
+            background-color: var(--bg-dark);
             color: #f8fafc;
             font-family: 'Plus Jakarta Sans', sans-serif;
+            scroll-behavior: smooth;
+            overflow-x: hidden;
         }
+
+        /* Loading Screen */
+        #loading-screen {
+            position: fixed;
+            inset: 0;
+            background: #04070a;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.8s cubic-bezier(0.65, 0, 0.35, 1), visibility 0.8s;
+        }
+
+        #loading-screen.fade-out { opacity: 0; visibility: hidden; }
+
+        .loader-bar-container {
+            width: 200px;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+
+        .loader-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--primary);
+            box-shadow: 0 0 15px var(--primary-glow);
+            transition: width 0.4s ease;
+        }
+
         .glass-card {
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(16px);
-            border: 1px solid rgba(34, 197, 94, 0.2);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
         }
+
+        .glass-card:hover {
+            border-color: rgba(34, 197, 94, 0.3);
+            transform: translateY(-4px);
+        }
+
         .status-badge {
-            padding: 4px 12px;
-            border-radius: 8px;
-            font-size: 0.7rem;
-            font-weight: 700;
-            letter-spacing: 0.05em;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.65rem;
+            font-weight: 800;
             text-transform: uppercase;
         }
-        .status-working { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
-        .status-risky { background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.3); }
-        .status-patched { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
-        
-        pre {
-            scrollbar-width: thin;
-            scrollbar-color: #166534 #060a0f;
+
+        .status-working { background: rgba(34, 197, 94, 0.1); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.2); }
+        .status-risky { background: rgba(234, 179, 8, 0.1); color: #fbbf24; border: 1px solid rgba(234, 179, 8, 0.2); }
+        .status-patched { background: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); }
+
+        .btn-primary {
+            background: var(--primary);
+            box-shadow: 0 0 20px var(--primary-glow);
+            transition: all 0.3s ease;
         }
+
+        .nav-link { position: relative; }
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -4px;
+            left: 0;
+            background-color: var(--primary);
+            transition: width 0.3s ease;
+        }
+        .nav-link:hover::after { width: 100%; }
+
         #copy-notification {
-            transform: translateX(-50%) translateY(100px);
+            transform: translate(-50%, 40px);
+            opacity: 0;
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
+
         #copy-notification.show {
-            transform: translateX(-50%) translateY(0);
+            transform: translate(-50%, -40px);
+            opacity: 1;
         }
-        .bean-glow {
-            box-shadow: 0 0 20px rgba(34, 197, 94, 0.1);
-        }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-dark); }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #334155; }
     </style>
 </head>
-<body class="min-h-screen selection:bg-green-500/30">
+<body class="selection:bg-green-500/30">
 
-    <!-- Background Decoration -->
-    <div class="fixed top-0 left-1/2 -translate-x-1/2 w-full h-full -z-10 overflow-hidden pointer-events-none">
-        <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-green-900/20 blur-[120px] rounded-full"></div>
-        <div class="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-green-800/10 blur-[100px] rounded-full"></div>
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="flex items-center gap-3 animate-pulse">
+            <div class="w-12 h-12 bg-green-500 rounded-2xl flex items-center justify-center shadow-[0_0_30px_rgba(34,197,94,0.5)]">
+                <i class="fas fa-ghost text-white text-xl"></i>
+            </div>
+            <span class="text-3xl font-black tracking-tighter uppercase">Bean<span class="text-green-500">Hub</span></span>
+        </div>
+        <div class="loader-bar-container">
+            <div id="loader-fill" class="loader-bar-fill"></div>
+        </div>
+        <span class="text-[10px] text-slate-500 uppercase tracking-[0.3em] mt-4 font-bold">Synchronizing Database</span>
     </div>
 
-    <!-- Navigation -->
-    <nav class="sticky top-0 z-40 w-full backdrop-blur-md border-b border-white/5">
-        <div class="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
-            <div class="flex items-center gap-2">
-                <div class="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(34,197,94,0.4)]">
-                    <i class="fas fa-seedling text-white text-sm"></i>
+    <!-- Navbar -->
+    <nav class="fixed top-0 w-full z-50 backdrop-blur-xl border-b border-white/5 bg-black/20">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="window.scrollTo(0,0)">
+                <div class="w-10 h-10 bg-green-500 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(34,197,94,0.3)]">
+                    <i class="fas fa-ghost text-white text-lg"></i>
                 </div>
-                <span class="text-xl font-extrabold tracking-tight">Bean<span class="text-green-500">Hub</span></span>
+                <span class="text-2xl font-black tracking-tighter uppercase">Bean<span class="text-green-500">Hub</span></span>
             </div>
-            <div class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
-                <a href="#" class="hover:text-green-400 transition-colors">Home</a>
-                <a href="#executors" class="hover:text-green-400 transition-colors">Executors</a>
-                <a href="#" class="bg-green-500/10 text-green-400 px-4 py-2 rounded-full border border-green-500/20 hover:bg-green-500 hover:text-white transition-all">Join Discord</a>
+            
+            <div class="hidden md:flex items-center gap-8 font-semibold text-sm tracking-wide text-slate-400">
+                <a href="#status" class="nav-link hover:text-white transition-colors">Status</a>
+                <a href="#guide" class="nav-link hover:text-white transition-colors">How to Use</a>
+                <a href="#executors" class="nav-link hover:text-white transition-colors">Executors</a>
             </div>
+
+            <a href="#" target="_blank" class="discord-link bg-[#5865F2] hover:bg-[#4752c4] text-white px-5 py-2 rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20">
+                <i class="fab fa-discord"></i>
+                <span>Join Discord</span>
+            </a>
         </div>
     </nav>
 
-    <!-- Hero Section -->
-    <header class="max-w-4xl mx-auto pt-24 px-6 text-center">
-        <div class="inline-flex items-center gap-2 bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-bold px-3 py-1 rounded-full mb-6 uppercase tracking-widest">
-            <span class="relative flex h-2 w-2">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-            </span>
-            Status: Undetected
-        </div>
-        <h1 class="text-5xl md:text-7xl font-extrabold mb-6 tracking-tight leading-tight">
-            Elevate Gameplay with <br><span class="text-green-500">Bean Hub</span>
-        </h1>
-        <p class="text-slate-400 text-lg md:text-xl max-w-2xl mx-auto mb-10 leading-relaxed">
-            The most sophisticated and lightweight script collection. 
-            Optimized for performance and built for power users.
-        </p>
-    </header>
+    <!-- Hero -->
+    <section class="pt-48 pb-24 px-6 relative overflow-hidden text-center">
+        <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-5xl h-full bg-green-500/5 blur-[120px] rounded-full pointer-events-none"></div>
+        
+        <div class="max-w-5xl mx-auto relative z-10">
+            <div class="flex justify-center mb-8">
+                <div class="bg-green-500/10 border border-green-500/20 px-4 py-1.5 rounded-full flex items-center gap-3">
+                    <span class="flex h-2 w-2 relative">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    <span class="text-green-400 text-[10px] font-black uppercase tracking-widest">Version 2.4.0 Online</span>
+                </div>
+            </div>
+            <h1 class="text-6xl md:text-8xl font-black mb-8 tracking-tighter leading-[0.85]">
+                One Script. <br><span class="text-green-500">Infinite Power.</span>
+            </h1>
+            <p class="text-slate-400 text-lg md:text-xl max-w-2xl mx-auto mb-12 font-medium leading-relaxed">
+                The ultimate universal tool for Roblox. Experience flawless execution, advanced ESP, and world-class auto-farming with our lightweight loader.
+            </p>
 
-    <!-- Script Content -->
-    <main class="max-w-4xl mx-auto px-6 pb-32">
-        <div class="glass-card rounded-3xl overflow-hidden bean-glow">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center p-5 bg-white/5 border-b border-white/5 gap-4">
-                <div class="flex items-center gap-3">
-                    <div class="flex gap-1.5">
-                        <div class="w-3 h-3 rounded-full bg-red-500/50"></div>
-                        <div class="w-3 h-3 rounded-full bg-yellow-500/50"></div>
-                        <div class="w-3 h-3 rounded-full bg-green-500/50"></div>
+            <!-- Main Action -->
+            <div class="max-w-3xl mx-auto glass-card rounded-3xl overflow-hidden shadow-2xl mb-12 border border-white/10">
+                <div class="flex items-center justify-between px-6 py-4 bg-white/[0.03] border-b border-white/5">
+                    <div class="flex items-center gap-4">
+                        <div class="flex gap-1.5">
+                            <div class="w-3 h-3 rounded-full bg-red-500/50"></div>
+                            <div class="w-3 h-3 rounded-full bg-yellow-500/50"></div>
+                            <div class="w-3 h-3 rounded-full bg-green-500/50"></div>
+                        </div>
+                        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest font-mono">Loader Script</span>
                     </div>
-                    <span class="text-xs text-slate-500 font-mono ml-2 uppercase tracking-tighter">main_loader.lua</span>
+                    <button onclick="copyScript()" class="group flex items-center gap-2 text-green-500 hover:text-green-400 transition-colors bg-green-500/5 px-3 py-1 rounded-lg border border-green-500/10">
+                        <span class="text-[10px] font-black uppercase tracking-widest">Copy Code</span>
+                        <i class="far fa-copy"></i>
+                    </button>
                 </div>
-                <button onclick="copyScript()" class="w-full sm:w-auto flex items-center justify-center gap-2 bg-green-500 hover:bg-green-400 text-black px-6 py-2.5 rounded-xl text-sm font-bold transition-all transform active:scale-95 shadow-[0_0_20px_rgba(34,197,94,0.2)]">
-                    <i class="far fa-copy text-lg"></i> Copy Code
-                </button>
-            </div>
-            <div class="p-0 relative">
-                <pre class="p-8 text-sm font-mono overflow-x-auto bg-[#0a0f14] leading-loose"><code id="script-code" class="text-green-50/90">loadstring(game:HttpGet("https://raw.githubusercontent.com/BeanHub/Main/main/Loader.lua"))()</code></pre>
+                <div class="p-8 text-left bg-black/40">
+                    <pre class="font-mono text-sm overflow-x-auto whitespace-pre-wrap"><code id="script-code" class="text-slate-300"><span class="text-green-500">loadstring</span>(game:<span class="text-green-400">HttpGet</span>(<span class="text-yellow-200">"https://raw.githubusercontent.com/BeanHub/Main/main/Loader.lua"</span>))()</code></pre>
+                </div>
             </div>
         </div>
+    </section>
 
-        <!-- Executor Support -->
-        <section id="executors" class="mt-24">
-            <div class="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
-                <div>
-                    <h2 class="text-3xl font-bold mb-2 tracking-tight">Support Matrix</h2>
-                    <p class="text-slate-500 text-sm">Real-time compatibility status for major executors.</p>
-                </div>
-                <div class="flex gap-4 text-xs">
-                    <span class="flex items-center gap-1.5 text-slate-400"><span class="w-2 h-2 rounded-full bg-green-500"></span> Working</span>
-                    <span class="flex items-center gap-1.5 text-slate-400"><span class="w-2 h-2 rounded-full bg-yellow-500"></span> Testing</span>
-                </div>
+    <!-- Status Dashboard -->
+    <section id="status" class="py-24 bg-white/[0.02] border-y border-white/5">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-16">
+                <h2 class="text-4xl font-black mb-4">Live Status</h2>
+                <p class="text-slate-500">Real-time tracking of our core components and bypasses.</p>
             </div>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                
-                <!-- Executor Cards -->
-                <div class="glass-card p-6 rounded-2xl flex flex-col gap-4 hover:border-green-500/40 transition-all group">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h3 class="font-bold text-lg group-hover:text-green-400 transition-colors">Wave</h3>
-                            <p class="text-xs text-slate-500 mt-1">Windows (External)</p>
-                        </div>
-                        <span class="status-badge status-working">Working</span>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="glass-card p-8 rounded-3xl flex items-center justify-between">
+                    <div>
+                        <h5 class="text-slate-500 text-xs font-black uppercase tracking-widest mb-1">Global Loader</h5>
+                        <p class="text-xl font-bold">Operational</p>
+                    </div>
+                    <div class="w-12 h-12 bg-green-500/10 rounded-2xl flex items-center justify-center text-green-500">
+                        <i class="fas fa-check-circle text-2xl"></i>
                     </div>
                 </div>
-
-                <div class="glass-card p-6 rounded-2xl flex flex-col gap-4 hover:border-green-500/40 transition-all group">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h3 class="font-bold text-lg group-hover:text-green-400 transition-colors">Solara</h3>
-                            <p class="text-xs text-slate-500 mt-1">Windows (Internal)</p>
-                        </div>
-                        <span class="status-badge status-working">Working</span>
+                <div class="glass-card p-8 rounded-3xl flex items-center justify-between">
+                    <div>
+                        <h5 class="text-slate-500 text-xs font-black uppercase tracking-widest mb-1">Anti-Cheat Bypass</h5>
+                        <p class="text-xl font-bold">Undetected</p>
+                    </div>
+                    <div class="w-12 h-12 bg-green-500/10 rounded-2xl flex items-center justify-center text-green-500">
+                        <i class="fas fa-user-shield text-2xl"></i>
                     </div>
                 </div>
-
-                <div class="glass-card p-6 rounded-2xl flex flex-col gap-4 hover:border-green-500/40 transition-all group">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h3 class="font-bold text-lg group-hover:text-green-400 transition-colors">Delta</h3>
-                            <p class="text-xs text-slate-500 mt-1">Mobile / Emulator</p>
-                        </div>
-                        <span class="status-badge status-risky">Risky</span>
+                <div class="glass-card p-8 rounded-3xl flex items-center justify-between">
+                    <div>
+                        <h5 class="text-slate-500 text-xs font-black uppercase tracking-widest mb-1">Server API</h5>
+                        <p class="text-xl font-bold">Stable</p>
+                    </div>
+                    <div class="w-12 h-12 bg-green-500/10 rounded-2xl flex items-center justify-center text-green-500">
+                        <i class="fas fa-network-wired text-2xl"></i>
                     </div>
                 </div>
-
-                <div class="glass-card p-6 rounded-2xl flex flex-col gap-4 hover:border-green-500/40 transition-all group">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h3 class="font-bold text-lg group-hover:text-green-400 transition-colors">Synapse Z</h3>
-                            <p class="text-xs text-slate-500 mt-1">Windows</p>
-                        </div>
-                        <span class="status-badge status-working">Working</span>
-                    </div>
-                </div>
-
-                <div class="glass-card p-6 rounded-2xl flex flex-col gap-4 hover:border-green-500/40 transition-all group">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h3 class="font-bold text-lg group-hover:text-green-400 transition-colors">Hydrogen</h3>
-                            <p class="text-xs text-slate-500 mt-1">Android / macOS</p>
-                        </div>
-                        <span class="status-badge status-patched">Patched</span>
-                    </div>
-                </div>
-
-                <div class="glass-card p-6 rounded-2xl flex flex-col gap-4 hover:border-green-500/40 transition-all group">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h3 class="font-bold text-lg group-hover:text-green-400 transition-colors">Codex</h3>
-                            <p class="text-xs text-slate-500 mt-1">iOS / Android</p>
-                        </div>
-                        <span class="status-badge status-working">Working</span>
-                    </div>
-                </div>
-
             </div>
-        </section>
-    </main>
+        </div>
+    </section>
+
+    <!-- Guide Section -->
+    <section id="guide" class="py-24 max-w-5xl mx-auto px-6">
+        <h2 class="text-4xl font-black mb-16 text-center tracking-tight">Installation Guide</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-12">
+            <div class="text-center">
+                <div class="w-16 h-16 rounded-3xl bg-green-500/10 border border-green-500/20 flex items-center justify-center font-black text-2xl text-green-500 mx-auto mb-6">1</div>
+                <h4 class="text-xl font-bold mb-3">Get Executor</h4>
+                <p class="text-slate-500 text-sm leading-relaxed">Choose and install a supported executor. We recommend <b>Wave</b> or <b>Solara</b> for Windows.</p>
+            </div>
+            <div class="text-center">
+                <div class="w-16 h-16 rounded-3xl bg-green-500/10 border border-green-500/20 flex items-center justify-center font-black text-2xl text-green-500 mx-auto mb-6">2</div>
+                <h4 class="text-xl font-bold mb-3">Copy Script</h4>
+                <p class="text-slate-500 text-sm leading-relaxed">Simply click the copy button at the top of this page to get the universal loader code.</p>
+            </div>
+            <div class="text-center">
+                <div class="w-16 h-16 rounded-3xl bg-green-500/10 border border-green-500/20 flex items-center justify-center font-black text-2xl text-green-500 mx-auto mb-6">3</div>
+                <h4 class="text-xl font-bold mb-3">Run & Enjoy</h4>
+                <p class="text-slate-500 text-sm leading-relaxed">Paste the script into your executor while in-game and press Execute. The GUI will appear instantly.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Support Matrix -->
+    <section id="executors" class="py-24 max-w-7xl mx-auto px-6">
+        <div class="text-center mb-16">
+            <h2 class="text-4xl font-black mb-4 uppercase italic">Supported Executors</h2>
+            <p class="text-slate-500">Our script is optimized for these popular environments.</p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="glass-card p-6 rounded-2xl">
+                <div class="flex justify-between items-start mb-4">
+                    <span class="text-[10px] font-black text-slate-500 tracking-tighter uppercase">Win x64</span>
+                    <span class="status-badge status-working">Stable</span>
+                </div>
+                <h4 class="font-bold text-lg">Wave</h4>
+                <div class="mt-4 flex gap-2">
+                    <span class="px-2 py-1 bg-white/5 rounded text-[9px] font-bold">PC</span>
+                    <span class="px-2 py-1 bg-white/5 rounded text-[9px] font-bold">Free</span>
+                </div>
+            </div>
+            <div class="glass-card p-6 rounded-2xl">
+                <div class="flex justify-between items-start mb-4">
+                    <span class="text-[10px] font-black text-slate-500 tracking-tighter uppercase">Android</span>
+                    <span class="status-badge status-working">Stable</span>
+                </div>
+                <h4 class="font-bold text-lg">Delta</h4>
+                <div class="mt-4 flex gap-2">
+                    <span class="px-2 py-1 bg-white/5 rounded text-[9px] font-bold">Mobile</span>
+                    <span class="px-2 py-1 bg-white/5 rounded text-[9px] font-bold">Fast</span>
+                </div>
+            </div>
+            <div class="glass-card p-6 rounded-2xl">
+                <div class="flex justify-between items-start mb-4">
+                    <span class="text-[10px] font-black text-slate-500 tracking-tighter uppercase">Win x64</span>
+                    <span class="status-badge status-working">Stable</span>
+                </div>
+                <h4 class="font-bold text-lg">Solara</h4>
+                <div class="mt-4 flex gap-2">
+                    <span class="px-2 py-1 bg-white/5 rounded text-[9px] font-bold">PC</span>
+                    <span class="px-2 py-1 bg-white/5 rounded text-[9px] font-bold">Lite</span>
+                </div>
+            </div>
+            <div class="glass-card p-6 rounded-2xl">
+                <div class="flex justify-between items-start mb-4">
+                    <span class="text-[10px] font-black text-slate-500 tracking-tighter uppercase">MacOS</span>
+                    <span class="status-badge status-patched">Down</span>
+                </div>
+                <h4 class="font-bold text-lg">MacSploit</h4>
+                <div class="mt-4 flex gap-2">
+                    <span class="px-2 py-1 bg-white/5 rounded text-[9px] font-bold">Apple</span>
+                    <span class="px-2 py-1 bg-white/5 rounded text-[9px] font-bold">Paid</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-20 border-t border-white/5 mt-20">
+        <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-10">
+            <div>
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-ghost text-white text-sm"></i>
+                    </div>
+                    <span class="text-xl font-black tracking-tighter uppercase">Bean<span class="text-green-500">Hub</span></span>
+                </div>
+                <p class="text-slate-500 text-sm">© 2026 Bean Hub. Universal Script Solutions.</p>
+            </div>
+            <div class="flex gap-6">
+                <a href="#" class="discord-link w-12 h-12 glass-card rounded-2xl flex items-center justify-center hover:bg-[#5865F2] hover:text-white transition-all"><i class="fab fa-discord text-xl"></i></a>
+                <a href="#" class="w-12 h-12 glass-card rounded-2xl flex items-center justify-center hover:bg-white hover:text-black transition-all"><i class="fab fa-github text-xl"></i></a>
+            </div>
+        </div>
+    </footer>
 
     <!-- Toast Notification -->
-    <div id="copy-notification" class="fixed bottom-10 left-1/2 p-4 bg-green-600 text-white rounded-2xl shadow-2xl z-50 flex items-center gap-3 border border-green-400/30">
-        <div class="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center">
-            <i class="fas fa-check text-xs"></i>
+    <div id="copy-notification" class="fixed bottom-10 left-1/2 p-4 bg-white text-black rounded-2xl shadow-2xl z-[100] flex items-center gap-3 font-bold text-sm min-w-[280px] -translate-x-1/2">
+        <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center text-white">
+            <i class="fas fa-check"></i>
         </div>
-        <span class="font-bold text-sm">Copied to your clipboard</span>
+        <span>Script copied to clipboard!</span>
     </div>
 
     <script>
+        const DISCORD_INVITE_URL = "https://discord.gg/beanhub-official";
+
+        // Setup Discord Links
+        document.querySelectorAll('.discord-link').forEach(el => {
+            el.href = DISCORD_INVITE_URL;
+        });
+
+        // Loading Screen
+        window.addEventListener('load', () => {
+            const fill = document.getElementById('loader-fill');
+            const screen = document.getElementById('loading-screen');
+            
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += Math.random() * 25;
+                if (progress >= 100) {
+                    progress = 100;
+                    fill.style.width = '100%';
+                    clearInterval(interval);
+                    setTimeout(() => {
+                        screen.classList.add('fade-out');
+                    }, 400);
+                }
+                fill.style.width = progress + '%';
+            }, 100);
+        });
+
+        // Copy Script
         function copyScript() {
             const code = document.getElementById('script-code').innerText;
             const textArea = document.createElement("textarea");
             textArea.value = code;
             document.body.appendChild(textArea);
             textArea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textArea);
-
-            const notification = document.getElementById('copy-notification');
-            notification.classList.add('show');
             
-            setTimeout(() => {
-                notification.classList.remove('show');
-            }, 3000);
+            try {
+                document.execCommand('copy');
+                const notification = document.getElementById('copy-notification');
+                notification.classList.add('show');
+                setTimeout(() => notification.classList.remove('show'), 3000);
+            } catch (err) {
+                console.error('Copy failed', err);
+            }
+            
+            document.body.removeChild(textArea);
         }
     </script>
 </body>
